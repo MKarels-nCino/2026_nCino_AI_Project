@@ -346,3 +346,133 @@ def get_user_stats():
     except Exception as e:
         logger.error(f"Error getting user stats: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@api_routes.route("/debug/board/<board_id>", methods=["GET"])
+@login_required
+def debug_board(board_id):
+    """Debug endpoint to check board status and conflicts"""
+    from models.board import Board
+    from models.checkout import Checkout
+    from models.reservation import Reservation
+    
+    board = Board.find_by_id(board_id)
+    if not board:
+        return jsonify({"success": False, "error": "Board not found"}), 404
+    
+    # Get all active checkouts for this board
+    active_checkouts = Checkout.query.filter_by(
+        board_id=board_id,
+        status=Checkout.STATUS_ACTIVE
+    ).all()
+    
+    # Get all pending reservations for this board
+    reservations = Reservation.query.filter_by(
+        board_id=board_id
+    ).filter(
+        Reservation.status.in_([Reservation.STATUS_PENDING, Reservation.STATUS_AVAILABLE])
+    ).all()
+    
+    return jsonify({
+        "success": True,
+        "board": {
+            "id": board.id,
+            "name": board.name,
+            "status": board.status,
+            "is_available": board.is_available()
+        },
+        "active_checkouts": [
+            {
+                "id": c.id,
+                "user_id": c.user_id,
+                "checkout_time": c.checkout_time.isoformat() if c.checkout_time else None,
+                "expected_return_time": c.expected_return_time.isoformat() if c.expected_return_time else None,
+                "status": c.status
+            } for c in active_checkouts
+        ],
+        "pending_reservations": [
+            {
+                "id": r.id,
+                "user_id": r.user_id,
+                "unlock_time": r.unlock_time.isoformat() if r.unlock_time else None,
+                "status": r.status
+            } for r in reservations
+        ]
+    }), 200
+
+
+@api_routes.route("/debug/clear-my-checkouts", methods=["POST"])
+@login_required
+def clear_my_checkouts():
+    """Clear all active checkouts for current user (for testing)"""
+    from models.checkout import Checkout
+    from models.board import Board
+    from database import db
+    
+    try:
+        # Get all active checkouts for this user
+        active_checkouts = Checkout.query.filter_by(
+            user_id=current_user.id,
+            status=Checkout.STATUS_ACTIVE
+        ).all()
+        
+        count = 0
+        for checkout in active_checkouts:
+            # Reset board status to available
+            board = Board.find_by_id(checkout.board_id)
+            if board:
+                board.status = Board.STATUS_AVAILABLE
+                db.session.add(board)
+            
+            # Mark checkout as returned
+            checkout.status = Checkout.STATUS_RETURNED
+            db.session.add(checkout)
+            count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Cleared {count} active checkouts"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@api_routes.route("/debug/reset-all-boards", methods=["POST"])
+@login_required
+def reset_all_boards():
+    """Reset all boards to available status (for testing)"""
+    from models.board import Board
+    from models.checkout import Checkout
+    from database import db
+    
+    try:
+        # Get all boards
+        boards = Board.query.all()
+        
+        count = 0
+        for board in boards:
+            if board.status != Board.STATUS_AVAILABLE:
+                # Check if there's actually an active checkout
+                active = Checkout.query.filter_by(
+                    board_id=board.id,
+                    status=Checkout.STATUS_ACTIVE
+                ).first()
+                
+                if not active:
+                    # No active checkout, reset to available
+                    board.status = Board.STATUS_AVAILABLE
+                    db.session.add(board)
+                    count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Reset {count} boards to available"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500

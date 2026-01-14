@@ -73,7 +73,9 @@ def view_cart():
             item_details = item
         
         board = Board.find_by_id(board_id)
-        if board and board.is_available():
+        if board:
+            # Don't filter by availability here - let users see what's in their cart
+            # Availability will be checked at checkout time
             location = Location.find_by_id(item_details.get('location_id'))
             
             # Format hour for display
@@ -90,12 +92,13 @@ def view_cart():
                 'timezone': location.timezone if location else 'America/New_York'
             })
             valid_cart.append(item_details)
+        # Only remove if board doesn't exist at all
     
-    # Update cart if some items were removed
+    # Update cart only if boards were deleted from database
     if len(valid_cart) != len(cart):
         save_cart(valid_cart)
         if len(valid_cart) < len(cart):
-            flash('Some boards were removed from your cart (no longer available)', 'warning')
+            flash('Some boards were removed from your cart (board no longer exists)', 'warning')
     
     return render_template('user/cart.html', cart_items=cart_items)
 
@@ -118,7 +121,7 @@ def add_to_cart(board_id):
     if not checkout_date:
         return jsonify({'success': False, 'error': 'Please select a checkout date on the dashboard first'}), 400
     
-    # Verify board exists and is available
+    # Verify board exists
     board = Board.find_by_id(board_id)
     if not board:
         return jsonify({'success': False, 'error': 'Board not found'}), 404
@@ -126,13 +129,28 @@ def add_to_cart(board_id):
     if board.location_id != location_id:
         return jsonify({'success': False, 'error': 'Board not at selected location'}), 400
     
-    if not board.is_available():
-        return jsonify({'success': False, 'error': 'Board is not available'}), 400
-    
-    # Check for active checkout
-    active_checkout = Checkout.find_active_by_board(board_id)
-    if active_checkout:
-        return jsonify({'success': False, 'error': 'Board is already checked out'}), 400
+    # Check availability at the selected datetime (same as dashboard display)
+    # This checks for overlapping checkouts/reservations, not just board status
+    try:
+        checkout_hour_int = int(checkout_hour)
+        duration_int = int(duration_hours)
+        checkout_datetime_str = f"{checkout_date} {checkout_hour_int:02d}:00"
+        checkout_datetime_local = datetime.strptime(checkout_datetime_str, '%Y-%m-%d %H:%M')
+        
+        tz = timezone_service.get_location_timezone(location_id)
+        checkout_datetime_local = tz.localize(checkout_datetime_local)
+        checkout_datetime_utc = checkout_datetime_local.astimezone(pytz.UTC)
+        
+        is_available, reason = board.is_available_at_datetime(checkout_datetime_utc, duration_int)
+        if not is_available:
+            return jsonify({'success': False, 'error': f'Board is {reason} at this time. Choose a different date/time.'}), 400
+    except Exception as e:
+        logger.error(f"Error checking board availability: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Fall back to basic status check
+        if not board.is_available():
+            return jsonify({'success': False, 'error': f'Board status is {board.status}, not available'}), 400
     
     # Parse selected checkout date
     from models.reservation import Reservation
@@ -262,23 +280,13 @@ def checkout_cart():
                 continue
             
             try:
-                # Verify board is still available
+                # Verify board exists
                 board = Board.find_by_id(board_id)
                 if not board:
                     errors.append(f"Board not found")
                     continue
                 
-                if not board.is_available():
-                    errors.append(f"Board {board.name} is no longer available")
-                    continue
-                
-                # Check for active checkout
-                active_checkout = Checkout.find_active_by_board(board_id)
-                if active_checkout:
-                    errors.append(f"Board {board.name} is already checked out")
-                    continue
-                
-                # Parse datetime
+                # Parse datetime first so we can check availability at that time
                 hour = int(checkout_hour)
                 checkout_datetime_str = f"{checkout_date} {hour:02d}:00"
                 checkout_datetime_local = datetime.strptime(checkout_datetime_str, '%Y-%m-%d %H:%M')
@@ -287,6 +295,12 @@ def checkout_cart():
                 tz = timezone_service.get_location_timezone(location_id)
                 checkout_datetime_local = tz.localize(checkout_datetime_local)
                 checkout_datetime_utc = checkout_datetime_local.astimezone(pytz.UTC)
+                
+                # Check availability at the specific datetime (not just board status)
+                is_available, reason = board.is_available_at_datetime(checkout_datetime_utc, duration_hours)
+                if not is_available:
+                    errors.append(f"Board {board.name} is {reason} at that time")
+                    continue
                 
                 # Calculate return time
                 if duration_hours < 1:
