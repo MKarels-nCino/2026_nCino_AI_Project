@@ -28,12 +28,14 @@
 /* Fun board card styling */
 .board-card {
     transition: all 0.3s ease;
-    border-left: 4px solid var(--wipeout-orange);
+    border-left: 4px solid #20B2AA;
+    box-shadow: 0 2px 4px rgba(32, 178, 170, 0.1);
 }
 
 .board-card:hover {
     transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(32, 178, 170, 0.2);
+    border-left-color: #1a8f88;
 }
 
 /* Fall-themed accents (subtle) */

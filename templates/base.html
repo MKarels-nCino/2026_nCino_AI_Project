@@ -97,7 +97,7 @@
     
     <!-- Connection Status Indicator - Hidden by default, only shows when disconnected -->
     {% if current_user.is_authenticated %}
-    <div class="connection-indicator disconnected" id="connectionIndicator" style="position: fixed; top: 60px; right: 20px; z-index: 1000; display: none;">
+    <div class="connection-indicator disconnected" id="connectionIndicator" style="display: none;">
         <span class="badge bg-danger">
             <i class="bi bi-wifi-off"></i> Disconnected
         </span>
