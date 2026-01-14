@@ -28,7 +28,9 @@ def get_selected_location_id():
             first_location = Location.find_all()
             if first_location:
                 location_id = first_location[0].id
-                session['selected_location_id'] = location_id
+        # Always save to session so it persists
+        if location_id:
+            session['selected_location_id'] = location_id
     return location_id
 
 
@@ -37,6 +39,13 @@ def get_selected_location_id():
 def dashboard():
     """User dashboard"""
     location_id = get_selected_location_id()
+    
+    # Ensure we always have a location selected
+    if not location_id:
+        all_locations = Location.find_all()
+        if all_locations:
+            location_id = all_locations[0].id
+            session['selected_location_id'] = location_id
     
     # Get all locations for the selector
     all_locations = Location.find_all()

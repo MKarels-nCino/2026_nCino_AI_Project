@@ -42,7 +42,10 @@ def get_selected_location_id():
             first_location = Location.find_all()
             if first_location:
                 location_id = first_location[0].id
-                session["selected_location_id"] = location_id
+        # Always save to session so it persists
+        if location_id:
+            session["selected_location_id"] = location_id
+            session.permanent = True  # Make session persist
     return location_id
 
 

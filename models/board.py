@@ -28,19 +28,21 @@ class Board(db.Model):
     name = db.Column(db.String(255), nullable=False)
     brand = db.Column(db.String(100), nullable=True)
     size = db.Column(db.String(50), nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)  # URL to surfboard image
     status = db.Column(db.String(50), default=BOARD_STATUS_AVAILABLE, nullable=False)
     condition = db.Column(db.String(50), default=BOARD_CONDITION_GOOD, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     def __init__(self, id=None, location_id=None, name=None, brand=None, 
-                 size=None, status=None, condition=None, created_at=None, updated_at=None):
+                 size=None, image_url=None, status=None, condition=None, created_at=None, updated_at=None):
         if id:
             self.id = id
         self.location_id = location_id
         self.name = name
         self.brand = brand
         self.size = size
+        self.image_url = image_url
         self.status = status or self.STATUS_AVAILABLE
         self.condition = condition or self.CONDITION_GOOD
         if created_at:
@@ -97,6 +99,7 @@ class Board(db.Model):
             'name': self.name,
             'brand': self.brand,
             'size': self.size,
+            'image_url': self.image_url,
             'status': self.status,
             'condition': self.condition,
             'is_available': self.is_available(),
