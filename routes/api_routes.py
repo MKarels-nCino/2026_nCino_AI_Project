@@ -176,6 +176,37 @@ def return_board(checkout_id):
         return jsonify({"success": False, "error": str(e)}), 400
 
 
+@api_routes.route("/activate-checkout/<checkout_id>", methods=["POST"])
+@login_required
+def activate_checkout(checkout_id):
+    """API endpoint to activate a scheduled checkout (start using the board)"""
+    try:
+        checkout = Checkout.find_by_id(checkout_id)
+        if not checkout:
+            return jsonify({"success": False, "error": "Checkout not found"}), 404
+        
+        if checkout.user_id != current_user.id:
+            return jsonify({"success": False, "error": "Not your checkout"}), 403
+        
+        if checkout.status != Checkout.STATUS_ACTIVE:
+            return jsonify({"success": False, "error": "Checkout is not active"}), 400
+        
+        # Update checkout time to now (mark as "in use")
+        from datetime import datetime
+        from database import db
+        
+        # We don't change the status, but we update the checkout_time to now
+        # This means checkout_time <= now, which triggers "in use" display
+        checkout.checkout_time = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"Checkout {checkout_id} activated by user {current_user.id}")
+        return jsonify({"success": True, "checkout": checkout.to_dict()}), 200
+    except Exception as e:
+        logger.error(f"Activate checkout error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
 @api_routes.route("/cancel-checkout/<checkout_id>", methods=["POST"])
 @login_required
 def cancel_checkout(checkout_id):

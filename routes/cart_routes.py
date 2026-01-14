@@ -10,6 +10,7 @@ from services.timezone_service import TimezoneService
 from database import db
 from datetime import datetime, timedelta
 import logging
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,10 @@ timezone_service = TimezoneService()
 
 
 def get_cart():
-    """Get cart from session"""
+    """
+    Get cart from session.
+    Cart is a list of dicts: [{board_id, location_id, checkout_date, checkout_hour, duration_hours}, ...]
+    """
     return session.get('cart', [])
 
 
@@ -48,64 +52,71 @@ def get_selected_location_id():
 def view_cart():
     """View shopping cart"""
     cart = get_cart()
-    location_id = get_selected_location_id()
     
-    if not location_id:
-        flash('Please select a location first', 'error')
-        return redirect(url_for('user_routes.dashboard'))
-    
-    # Get board details for items in cart
+    # Build cart items with full details
     cart_items = []
-    for board_id in cart:
-        board = Board.find_by_id(board_id)
-        if board and board.location_id == location_id and board.is_available():
-            cart_items.append(board)
+    valid_cart = []
     
-    # Filter out boards that are no longer available or from different location
-    valid_cart = [item.id for item in cart_items]
+    for item in cart:
+        # Handle both old format (just board_id string) and new format (dict)
+        if isinstance(item, str):
+            board_id = item
+            item_details = {
+                'board_id': board_id,
+                'location_id': get_selected_location_id(),
+                'checkout_date': session.get('checkout_date', ''),
+                'checkout_hour': session.get('checkout_hour', '8'),
+                'duration_hours': session.get('checkout_duration', '1')
+            }
+        else:
+            board_id = item.get('board_id')
+            item_details = item
+        
+        board = Board.find_by_id(board_id)
+        if board and board.is_available():
+            location = Location.find_by_id(item_details.get('location_id'))
+            
+            # Format hour for display
+            hour = int(item_details.get('checkout_hour', 8))
+            hour_display = f"{hour % 12 or 12}:00 {'AM' if hour < 12 else 'PM'}"
+            
+            cart_items.append({
+                'board': board,
+                'location': location,
+                'checkout_date': item_details.get('checkout_date'),
+                'checkout_hour': item_details.get('checkout_hour'),
+                'checkout_hour_display': hour_display,
+                'duration_hours': item_details.get('duration_hours'),
+                'timezone': location.timezone if location else 'America/New_York'
+            })
+            valid_cart.append(item_details)
+    
+    # Update cart if some items were removed
     if len(valid_cart) != len(cart):
         save_cart(valid_cart)
         if len(valid_cart) < len(cart):
             flash('Some boards were removed from your cart (no longer available)', 'warning')
     
-    current_location = Location.find_by_id(location_id) if location_id else None
-    
-    # Get checkout details from session (set on dashboard)
-    checkout_date = session.get('checkout_date')
-    checkout_hour = session.get('checkout_hour')
-    checkout_duration = session.get('checkout_duration', '1')
-    
-    # If not in session, default to next day at 8 AM
-    if not checkout_date or not checkout_hour:
-        if current_location:
-            tz = timezone_service.get_location_timezone(location_id)
-            now_local = timezone_service.now_in_location(location_id)
-            next_day = now_local + timedelta(days=1)
-            next_day_8am = next_day.replace(hour=8, minute=0, second=0, microsecond=0)
-            checkout_date = next_day_8am.strftime('%Y-%m-%d')
-            checkout_hour = '8'
-            checkout_duration = '1'
-        else:
-            checkout_date = None
-            checkout_hour = None
-            checkout_duration = '1'
-    
-    return render_template('user/cart.html',
-                         cart_items=cart_items,
-                         current_location=current_location,
-                         checkout_date=checkout_date,
-                         checkout_hour=checkout_hour,
-                         checkout_duration=checkout_duration)
+    return render_template('user/cart.html', cart_items=cart_items)
 
 
 @cart_routes.route('/cart/add/<board_id>', methods=['POST'])
 @login_required
 def add_to_cart(board_id):
-    """Add board to cart"""
+    """Add board to cart with checkout details"""
     location_id = get_selected_location_id()
     
     if not location_id:
         return jsonify({'success': False, 'error': 'No location selected'}), 400
+    
+    # Get checkout details from session (set on dashboard)
+    # Dashboard saves as checkout_date, checkout_hour, checkout_duration
+    checkout_date = session.get('checkout_date')
+    checkout_hour = session.get('checkout_hour', '8')
+    duration_hours = session.get('checkout_duration', '1')
+    
+    if not checkout_date:
+        return jsonify({'success': False, 'error': 'Please select a checkout date on the dashboard first'}), 400
     
     # Verify board exists and is available
     board = Board.find_by_id(board_id)
@@ -123,43 +134,31 @@ def add_to_cart(board_id):
     if active_checkout:
         return jsonify({'success': False, 'error': 'Board is already checked out'}), 400
     
-    # Get selected checkout date from session
+    # Parse selected checkout date
     from models.reservation import Reservation
-    from datetime import datetime
     
-    selected_checkout_date_str = session.get('checkout_date')
     selected_checkout_date = None
-    if selected_checkout_date_str:
+    if checkout_date:
         try:
-            selected_checkout_date = datetime.strptime(selected_checkout_date_str, '%Y-%m-%d').date()
+            selected_checkout_date = datetime.strptime(checkout_date, '%Y-%m-%d').date()
         except ValueError:
             pass
     
-    # Check for location mismatch with existing cart items (must be same location for same cart/day)
+    # Check if board is already in cart
     cart = get_cart()
-    if cart:
-        for cart_board_id in cart:
-            cart_board = Board.find_by_id(cart_board_id)
-            if cart_board and cart_board.location_id != board.location_id:
-                # Cart items from different location - not allowed (same checkout = same day = same location)
-                cart_location = Location.find_by_id(cart_board.location_id)
-                board_location = Location.find_by_id(board.location_id)
-                return jsonify({
-                    'success': False, 
-                    'error': f'You have items in your cart from {cart_location.name if cart_location else "another location"}. Cart items must be from the same location. Please checkout or remove those items first.'
-                }), 400
+    for item in cart:
+        item_board_id = item.get('board_id') if isinstance(item, dict) else item
+        if item_board_id == board_id:
+            return jsonify({'success': False, 'error': 'Board is already in your cart'}), 400
     
     # Check for date conflicts with existing scheduled checkouts from different locations
-    # Allow different locations ONLY if dates are different
     active_checkouts = Checkout.find_active_by_user(current_user.id)
     for checkout in active_checkouts:
         checkout_board = Board.find_by_id(checkout.board_id)
         if checkout_board and checkout_board.location_id != board.location_id:
-            # Different location - check if same date
-            checkout_date = checkout.checkout_time.date() if checkout.checkout_time else None
-            if selected_checkout_date and checkout_date and selected_checkout_date == checkout_date:
+            checkout_date_obj = checkout.checkout_time.date() if checkout.checkout_time else None
+            if selected_checkout_date and checkout_date_obj and selected_checkout_date == checkout_date_obj:
                 checkout_location = Location.find_by_id(checkout_board.location_id)
-                board_location = Location.find_by_id(board.location_id)
                 return jsonify({
                     'success': False,
                     'error': f'You already have a reservation at {checkout_location.name if checkout_location else "another location"} on {selected_checkout_date.strftime("%b %d, %Y")}. You cannot reserve boards from different locations on the same day.'
@@ -171,20 +170,38 @@ def add_to_cart(board_id):
         if reservation.status in ['pending', 'available']:
             reservation_board = Board.find_by_id(reservation.board_id)
             if reservation_board and reservation_board.location_id != board.location_id:
-                # Different location - check if same date
                 reservation_date = reservation.unlock_time.date() if reservation.unlock_time else None
                 if selected_checkout_date and reservation_date and selected_checkout_date == reservation_date:
                     reservation_location = Location.find_by_id(reservation_board.location_id)
-                    board_location = Location.find_by_id(board.location_id)
                     return jsonify({
                         'success': False,
                         'error': f'You already have a reservation at {reservation_location.name if reservation_location else "another location"} on {selected_checkout_date.strftime("%b %d, %Y")}. You cannot reserve boards from different locations on the same day.'
                     }), 400
     
-    # Add to cart
-    if board_id not in cart:
-        cart.append(board_id)
-        save_cart(cart)
+    # Check for date conflicts with items already in cart from different locations
+    for item in cart:
+        if isinstance(item, dict):
+            item_location_id = item.get('location_id')
+            item_date = item.get('checkout_date')
+            if item_location_id and item_location_id != location_id:
+                if item_date and checkout_date and item_date == checkout_date:
+                    item_location = Location.find_by_id(item_location_id)
+                    return jsonify({
+                        'success': False,
+                        'error': f'You have a board in your cart from {item_location.name if item_location else "another location"} on this same date. Different locations must be on different days.'
+                    }), 400
+    
+    # Create cart item with all checkout details
+    cart_item = {
+        'board_id': board_id,
+        'location_id': location_id,
+        'checkout_date': checkout_date,
+        'checkout_hour': checkout_hour,
+        'duration_hours': duration_hours
+    }
+    
+    cart.append(cart_item)
+    save_cart(cart)
     
     return jsonify({
         'success': True,
@@ -198,81 +215,59 @@ def add_to_cart(board_id):
 def remove_from_cart(board_id):
     """Remove board from cart"""
     cart = get_cart()
-    if board_id in cart:
-        cart.remove(board_id)
-        save_cart(cart)
+    new_cart = []
+    
+    for item in cart:
+        item_board_id = item.get('board_id') if isinstance(item, dict) else item
+        if item_board_id != board_id:
+            new_cart.append(item)
+    
+    save_cart(new_cart)
     
     return jsonify({
         'success': True,
         'message': 'Board removed from cart',
-        'cart_count': len(cart)
+        'cart_count': len(new_cart)
     })
 
 
 @cart_routes.route('/cart/checkout', methods=['POST'])
 @login_required
 def checkout_cart():
-    """Checkout all items in cart"""
+    """Checkout all items in cart - each item has its own date/time/location"""
     cart = get_cart()
-    location_id = get_selected_location_id()
     
     if not cart:
         return jsonify({'success': False, 'error': 'Cart is empty'}), 400
     
-    if not location_id:
-        return jsonify({'success': False, 'error': 'No location selected'}), 400
-    
-    # Get checkout datetime and duration from request
-    checkout_date = request.json.get('checkout_date')
-    checkout_hour = request.json.get('checkout_hour')
-    duration_hours = request.json.get('duration_hours', 1)  # Default to 1 hour
-    
-    if not checkout_date or not checkout_hour:
-        return jsonify({'success': False, 'error': 'Checkout date and hour required'}), 400
-    
-    try:
-        # Parse datetime (format: YYYY-MM-DD and hour 0-23)
-        hour = int(checkout_hour)
-        checkout_datetime_str = f"{checkout_date} {hour:02d}:00"
-        checkout_datetime_local = datetime.strptime(checkout_datetime_str, '%Y-%m-%d %H:%M')
-        
-        # Convert to UTC for storage
-        import pytz
-        tz = timezone_service.get_location_timezone(location_id)
-        checkout_datetime_local = tz.localize(checkout_datetime_local)
-        checkout_datetime_utc = checkout_datetime_local.astimezone(pytz.UTC)
-        
-        # Calculate return time based on duration (hours)
-        duration_hours = int(duration_hours)
-        if duration_hours < 1:
-            duration_hours = 1
-        elif duration_hours > 24:
-            duration_hours = 24
-        
-        expected_return_time = checkout_datetime_utc + timedelta(hours=duration_hours)
-        
-    except Exception as e:
-        logger.error(f"Error parsing checkout datetime: {e}")
-        return jsonify({'success': False, 'error': 'Invalid date/time format'}), 400
-    
-    # Checkout all boards
     checkouts = []
     errors = []
     
-    # Use a transaction to ensure all-or-nothing checkout
     try:
-        for board_id in cart:
+        for item in cart:
+            # Handle both old format (string) and new format (dict)
+            if isinstance(item, str):
+                # Old format - skip, shouldn't happen with new code
+                errors.append(f"Invalid cart item format")
+                continue
+            
+            board_id = item.get('board_id')
+            location_id = item.get('location_id')
+            checkout_date = item.get('checkout_date')
+            checkout_hour = item.get('checkout_hour', '8')
+            duration_hours = int(item.get('duration_hours', 1))
+            
+            if not all([board_id, location_id, checkout_date]):
+                errors.append(f"Missing checkout details for a board")
+                continue
+            
             try:
                 # Verify board is still available
                 board = Board.find_by_id(board_id)
                 if not board:
-                    errors.append(f"Board {board_id} not found")
+                    errors.append(f"Board not found")
                     continue
-                    
-                if board.location_id != location_id:
-                    errors.append(f"Board {board.name} is not at selected location")
-                    continue
-                    
+                
                 if not board.is_available():
                     errors.append(f"Board {board.name} is no longer available")
                     continue
@@ -282,6 +277,24 @@ def checkout_cart():
                 if active_checkout:
                     errors.append(f"Board {board.name} is already checked out")
                     continue
+                
+                # Parse datetime
+                hour = int(checkout_hour)
+                checkout_datetime_str = f"{checkout_date} {hour:02d}:00"
+                checkout_datetime_local = datetime.strptime(checkout_datetime_str, '%Y-%m-%d %H:%M')
+                
+                # Convert to UTC for storage
+                tz = timezone_service.get_location_timezone(location_id)
+                checkout_datetime_local = tz.localize(checkout_datetime_local)
+                checkout_datetime_utc = checkout_datetime_local.astimezone(pytz.UTC)
+                
+                # Calculate return time
+                if duration_hours < 1:
+                    duration_hours = 1
+                elif duration_hours > 24:
+                    duration_hours = 24
+                
+                expected_return_time = checkout_datetime_utc + timedelta(hours=duration_hours)
                 
                 # Create checkout
                 checkout = Checkout(
@@ -299,6 +312,7 @@ def checkout_cart():
                 
                 # Log activity
                 try:
+                    is_weekend = checkout_datetime_local.weekday() >= 5
                     log = ActivityLog(
                         user_id=current_user.id,
                         board_id=board_id,
@@ -306,7 +320,9 @@ def checkout_cart():
                         action_details={
                             'checkout_id': checkout.id,
                             'expected_return_time': expected_return_time.isoformat(),
-                            'is_weekend': is_weekend
+                            'is_weekend': is_weekend,
+                            'location_id': location_id,
+                            'duration_hours': duration_hours
                         },
                         location_id=location_id,
                         ip_address=request.remote_addr
@@ -314,9 +330,6 @@ def checkout_cart():
                     db.session.add(log)
                 except Exception as log_error:
                     logger.error(f"Error creating activity log: {log_error}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                    # Don't fail checkout if logging fails
                 
                 checkouts.append(checkout)
                 
@@ -324,12 +337,11 @@ def checkout_cart():
                 logger.error(f"Error checking out board {board_id}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
-                errors.append(f"Error checking out board {board_id}: {str(e)}")
+                errors.append(f"Error checking out board: {str(e)}")
         
         # Commit all checkouts at once
         if checkouts:
             db.session.commit()
-            # Refresh checkouts to get IDs
             for checkout in checkouts:
                 db.session.refresh(checkout)
         else:
@@ -359,3 +371,22 @@ def checkout_cart():
             'error': 'Failed to checkout any boards',
             'errors': errors
         }), 400
+
+
+@cart_routes.route('/api/cart-items', methods=['GET'])
+@login_required
+def get_cart_items():
+    """API endpoint to get current cart items (for updating dashboard buttons)"""
+    cart = get_cart()
+    cart_item_ids = []
+    
+    for item in cart:
+        if isinstance(item, dict):
+            cart_item_ids.append({'id': item.get('board_id')})
+        else:
+            cart_item_ids.append({'id': item})
+    
+    return jsonify({
+        'success': True,
+        'cart_items': cart_item_ids
+    })

@@ -23,7 +23,8 @@
                 <div class="list-group">
                     {% for item in all_items %}
                     <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div class="d-flex w-100 justify-content-between">
+                            <!-- Left side: Board info -->
                             <div class="flex-grow-1">
                                 <h5 class="mb-1">
                                     {% if item.board %}
@@ -33,14 +34,14 @@
                                         Board Reservation
                                     {% endif %}
                                 </h5>
-                                <div class="mb-2">
+                                <div class="mb-0">
                                     {% if item.is_checkout %}
                                         {% if item.display_status == 'scheduled' %}
                                             <p class="mb-1">
                                                 <strong>Checkout Time:</strong> 
                                                 {{ timezone_service.format_datetime_12hour(item.checkout_time, item.board.location_id if item.board else None, item.location.name if item.location else None) if item.checkout_time else 'N/A' }}
                                             </p>
-                                            <p class="mb-1">
+                                            <p class="mb-0">
                                                 <strong>Expected Return:</strong> 
                                                 {{ timezone_service.format_datetime_12hour(item.expected_return_time, item.board.location_id if item.board else None, item.location.name if item.location else None) if item.expected_return_time else 'N/A' }}
                                             </p>
@@ -49,50 +50,67 @@
                                                 <strong>Checked Out:</strong> 
                                                 {{ timezone_service.format_datetime_12hour(item.checkout_time, item.board.location_id if item.board else None, item.location.name if item.location else None) if item.checkout_time else 'N/A' }}
                                             </p>
-                                            <p class="mb-1">
+                                            <p class="mb-0">
                                                 <strong>Expected Return:</strong> 
                                                 {{ timezone_service.format_datetime_12hour(item.expected_return_time, item.board.location_id if item.board else None, item.location.name if item.location else None) if item.expected_return_time else 'N/A' }}
                                             </p>
                                         {% endif %}
                                     {% else %}
-                                        <p class="mb-1">
+                                        <p class="mb-0">
                                             <strong>Unlock Time:</strong> 
                                             {{ timezone_service.format_datetime_12hour(item.unlock_time, item.board.location_id if item.board else None, item.location.name if item.location else None) if item.unlock_time else 'N/A' }}
                                         </p>
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="d-flex flex-column align-items-end gap-2">
+                            <!-- Right side: Badge at top, buttons at bottom -->
+                            <div class="d-flex flex-column justify-content-between align-items-end ms-3" style="min-height: 80px;">
+                                <!-- Badge at top -->
                                 {% if item.is_checkout %}
                                     {% if item.display_status == 'scheduled' %}
                                         <span class="badge scheduled-badge">
                                             <i class="bi bi-calendar-check"></i> Scheduled
                                         </span>
-                                        <button class="btn btn-sm btn-danger cancel-checkout-btn mt-1" data-checkout-id="{{ item.id }}" data-board-name="{{ item.board.name if item.board else 'Board' }}">
-                                            <i class="bi bi-x-circle"></i> Cancel
-                                        </button>
                                     {% else %}
                                         <span class="badge in-use-badge">
-                                            <i class="bi bi-check-circle"></i> In Use
+                                            <i class="bi bi-water"></i> Active
                                         </span>
-                                        <button class="btn btn-sm btn-success return-btn" data-checkout-id="{{ item.id }}" data-board-id="{{ item.board_id if item.board else '' }}">
-                                            <i class="bi bi-arrow-return-left"></i> Return
-                                        </button>
                                     {% endif %}
                                 {% else %}
                                     <span class="badge bg-{% if item.status == 'pending' %}warning{% elif item.status == 'available' %}success{% elif item.status == 'fulfilled' %}info{% else %}secondary{% endif %}">
                                         {{ item.status|title }}
                                     </span>
-                                    {% if item.status == 'available' %}
-                                    <button class="btn btn-sm btn-primary fulfill-btn" data-reservation-id="{{ item.id }}">
-                                        <i class="bi bi-check-circle"></i> Fulfill Reservation
-                                    </button>
+                                {% endif %}
+                                
+                                <!-- Buttons at bottom -->
+                                {% if item.is_checkout %}
+                                    {% if item.display_status == 'scheduled' %}
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-teal activate-checkout-btn" data-checkout-id="{{ item.id }}" data-board-name="{{ item.board.name if item.board else 'Board' }}" style="min-width: 85px;">
+                                                <i class="bi bi-play-circle"></i> Activate
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger cancel-checkout-btn" data-checkout-id="{{ item.id }}" data-board-name="{{ item.board.name if item.board else 'Board' }}" style="min-width: 85px;">
+                                                <i class="bi bi-x-circle"></i> Cancel
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-success return-btn" data-checkout-id="{{ item.id }}" data-board-id="{{ item.board_id if item.board else '' }}">
+                                            <i class="bi bi-arrow-return-left"></i> Return
+                                        </button>
                                     {% endif %}
-                                    {% if item.status in ['pending', 'available'] %}
-                                    <button class="btn btn-sm btn-danger cancel-reservation-btn mt-1" data-reservation-id="{{ item.id }}" data-board-name="{{ item.board.name if item.board else 'Board' }}">
-                                        <i class="bi bi-x-circle"></i> Cancel
-                                    </button>
-                                    {% endif %}
+                                {% else %}
+                                    <div class="d-flex gap-2">
+                                        {% if item.status == 'available' %}
+                                        <button class="btn btn-sm btn-primary fulfill-btn" data-reservation-id="{{ item.id }}">
+                                            <i class="bi bi-check-circle"></i> Fulfill
+                                        </button>
+                                        {% endif %}
+                                        {% if item.status in ['pending', 'available'] %}
+                                        <button class="btn btn-sm btn-outline-danger cancel-reservation-btn" data-reservation-id="{{ item.id }}" data-board-name="{{ item.board.name if item.board else 'Board' }}">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
                             </div>
                         </div>
@@ -106,6 +124,38 @@
                     <p class="text-muted">Head to the <a href="{{ url_for('user_routes.dashboard') }}">Dashboard</a> to find your perfect board!</p>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activate Reservation Modal -->
+<div class="modal fade" id="activateReservationModal" tabindex="-1" aria-labelledby="activateReservationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-teal text-white">
+                <h5 class="modal-title" id="activateReservationModalLabel">
+                    <i class="bi bi-play-circle"></i> Activate Reservation?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Ready to hit the waves with <span id="activateBoardName"></span>?</strong></p>
+                <p class="text-muted">
+                    Activating this reservation means you're picking up the board now. 
+                    The timer starts and you'll need to return it before the expected return time.
+                </p>
+                <div class="alert alert-success">
+                    <i class="bi bi-water"></i>
+                    <small>Once activated, you can return the board and rate your experience!</small>
+                </div>
+                <input type="hidden" id="activateCheckoutId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Not Yet</button>
+                <button type="button" class="btn btn-teal" id="confirmActivateBtn">
+                    <i class="bi bi-play-circle"></i> Yes, Activate Now!
+                </button>
             </div>
         </div>
     </div>
@@ -200,6 +250,62 @@
 
 {% block extra_scripts %}
 <script>
+// Activate reservation handler
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.activate-checkout-btn')) {
+        const btn = e.target.closest('.activate-checkout-btn');
+        const checkoutId = btn.dataset.checkoutId;
+        const boardName = btn.dataset.boardName || 'this board';
+        
+        // Show activate confirmation modal
+        document.getElementById('activateCheckoutId').value = checkoutId;
+        document.getElementById('activateBoardName').textContent = boardName;
+        const activateModal = new bootstrap.Modal(document.getElementById('activateReservationModal'));
+        activateModal.show();
+    }
+});
+
+// Confirm activate reservation
+document.getElementById('confirmActivateBtn').addEventListener('click', function() {
+    const checkoutId = document.getElementById('activateCheckoutId').value;
+    
+    this.disabled = true;
+    this.innerHTML = '<i class="bi bi-hourglass-split"></i> Activating...';
+    
+    fetch(`/api/activate-checkout/${checkoutId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('activateReservationModal')).hide();
+            
+            if (typeof showToast === 'function') {
+                showToast('🏄 Board activated! Enjoy your ride!', 'success');
+            }
+            
+            // Reload page
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            throw new Error(data.error || 'Activation failed');
+        }
+    })
+    .catch(error => {
+        console.error('Activate error:', error);
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-play-circle"></i> Yes, Activate Now!';
+        if (typeof showToast === 'function') {
+            showToast(`Failed to activate: ${error.message}`, 'error');
+        }
+    });
+});
+
 // Return button handler with rating prompt
 document.addEventListener('click', function(e) {
     if (e.target.closest('.return-btn')) {

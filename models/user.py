@@ -47,6 +47,14 @@ class User(db.Model, UserMixin):
         """Find all users at a location"""
         return cls.query.filter_by(location_id=location_id).all()
     
+    @classmethod
+    def find_admins_by_location(cls, location_id):
+        """Find all admin users at a location (or all admins if location not specified)"""
+        from utils.constants import USER_ROLE_ADMIN
+        if location_id:
+            return cls.query.filter_by(location_id=location_id, role=USER_ROLE_ADMIN).all()
+        return cls.query.filter_by(role=USER_ROLE_ADMIN).all()
+    
     def save(self):
         """Save user to database"""
         db.session.add(self)

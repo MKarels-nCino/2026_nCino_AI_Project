@@ -48,7 +48,7 @@ ACTION_BOARD_STATUS_CHANGE = 'board_status_change'
 ACTION_DAMAGE_STATUS_CHANGE = 'damage_status_change'
 
 # Flash Messages (with personality!)
-MSG_LOGIN_SUCCESS = 'Welcome back! Ready to catch some waves? 🏄‍♂️'
+MSG_LOGIN_SUCCESS = "Welcome back! Ready to catch some waves? 🏄‍♂️ You don't have to be a pro to have fun!"
 MSG_LOGIN_FAILED = 'Oops! That login wiped out. Let\'s try again!'
 MSG_REGISTRATION_SUCCESS = 'Welcome to the crew! Time to make some memories! 🎉'
 MSG_REGISTRATION_FAILED = 'Registration hit a snag. Don\'t worry, we\'ll get you in!'

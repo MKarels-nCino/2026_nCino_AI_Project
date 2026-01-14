@@ -530,3 +530,12 @@ img {
 .modal-header.bg-teal {
     background-color: var(--teal-color) !important;
 }
+
+/* Cart Checkout Details per item */
+.checkout-details {
+    border-left: 3px solid var(--teal-color);
+}
+
+.checkout-details .text-teal {
+    color: var(--teal-color);
+}

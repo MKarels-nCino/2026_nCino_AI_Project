@@ -99,6 +99,9 @@ def dashboard():
     # Get duration as integer for availability check
     duration_hours = int(selected_duration) if selected_duration else 1
     
+    # Import BoardRating for getting ratings
+    from models.board_rating import BoardRating
+    
     # Check availability for each board at selected datetime
     available_boards = []
     for board in all_boards:
@@ -110,6 +113,11 @@ def dashboard():
             # If no datetime selected, use current availability
             board.availability_at_time = board.is_available()
             board.availability_reason = None if board.is_available() else "Not available"
+        
+        # Get board ratings
+        rating_data = BoardRating.get_average_rating(board.id)
+        board.avg_rating = rating_data['average']
+        board.rating_count = rating_data['count']
         
         available_boards.append(board)
     
@@ -135,7 +143,7 @@ def dashboard():
             location = Location.find_by_id(board.location_id)
             checkout.location = location
         checkout.is_checkout = True
-        checkout.status = 'scheduled' if checkout.checkout_time > now else 'in_use'
+        checkout.display_status = 'scheduled' if checkout.checkout_time > now else 'in_use'
         all_items.append(checkout)
     
     # Add actual reservations (only pending/available, not cancelled)
