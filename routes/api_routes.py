@@ -275,3 +275,43 @@ def get_reservation_queue(board_id):
     """API endpoint to get reservation queue for a board"""
     queue = reservation_service.get_reservation_queue(board_id)
     return jsonify({"success": True, "queue": [r.to_dict() for r in queue]}), 200
+
+
+@api_routes.route("/user-stats", methods=["GET"])
+@login_required
+def get_user_stats():
+    """API endpoint to get current user's stats"""
+    try:
+        from models.board_rating import BoardRating
+        
+        # Total checkouts (all time, including returned)
+        total_checkouts = Checkout.query.filter_by(user_id=current_user.id).count()
+        
+        # Active reservations (scheduled checkouts + pending reservations)
+        active_checkouts = Checkout.query.filter_by(
+            user_id=current_user.id,
+            status=Checkout.STATUS_ACTIVE
+        ).count()
+        
+        active_reservations_count = Reservation.query.filter(
+            Reservation.user_id == current_user.id,
+            Reservation.status.in_([Reservation.STATUS_PENDING, Reservation.STATUS_AVAILABLE])
+        ).count()
+        
+        total_active = active_checkouts + active_reservations_count
+        
+        # Average rating given by user
+        ratings = BoardRating.query.filter_by(user_id=current_user.id).all()
+        avg_rating = None
+        if ratings:
+            avg_rating = sum(r.rating for r in ratings) / len(ratings)
+        
+        return jsonify({
+            "success": True,
+            "total_checkouts": total_checkouts,
+            "active_reservations": total_active,
+            "avg_rating": avg_rating
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting user stats: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

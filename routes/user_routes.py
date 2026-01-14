@@ -220,23 +220,58 @@ def boards():
 @user_routes.route('/my-checkouts')
 @login_required
 def my_checkouts():
-    """View user's active checkouts (only checkouts where checkout_time has passed)"""
+    """View user's reservations - all checkouts and reservations combined"""
     from models.board import Board
+    from models.location import Location
     from datetime import datetime
     
-    # Get all active checkouts for user
-    all_active = Checkout.find_active_by_user(current_user.id)
-    
-    # Filter to only show checkouts where checkout_time has passed (currently in progress)
     now = datetime.utcnow()
-    active_checkouts = [c for c in all_active if c.checkout_time <= now]
     
-    # Get board info for each checkout
-    for checkout in active_checkouts:
+    # Get all active checkouts for user
+    all_active_checkouts = Checkout.find_active_by_user(current_user.id)
+    
+    # Get all reservations for user
+    reservations_list = Reservation.find_by_user(current_user.id)
+    
+    # Combine all checkouts and reservations into one list for display
+    all_items = []
+    
+    # Add checkouts (both scheduled and in use)
+    for checkout in all_active_checkouts:
+        if checkout.status == Checkout.STATUS_CANCELLED:
+            continue
         board = Board.find_by_id(checkout.board_id)
         checkout.board = board
+        if board:
+            location = Location.find_by_id(board.location_id)
+            checkout.location = location
+        checkout.is_checkout = True
+        checkout.display_status = 'scheduled' if checkout.checkout_time > now else 'in_use'
+        all_items.append(checkout)
     
-    return render_template('user/my_checkouts.html', checkouts=active_checkouts)
+    # Add actual reservations
+    for reservation in reservations_list:
+        if reservation.status == Reservation.STATUS_CANCELLED:
+            continue
+        board = Board.find_by_id(reservation.board_id)
+        reservation.board = board
+        if board:
+            location = Location.find_by_id(board.location_id)
+            reservation.location = location
+        reservation.is_checkout = False
+        all_items.append(reservation)
+    
+    # Sort by date
+    def sort_key(x):
+        if x.is_checkout:
+            return x.checkout_time
+        return x.unlock_time
+    
+    all_items.sort(key=sort_key)
+    
+    return render_template('user/my_checkouts.html', 
+                          all_items=all_items,
+                          timezone_service=timezone_service)
 
 
 @user_routes.route('/reservations')
@@ -245,3 +280,59 @@ def reservations():
     """View user's reservations"""
     reservations_list = Reservation.find_by_user(current_user.id)
     return render_template('user/reservations.html', reservations=reservations_list)
+
+
+@user_routes.route('/my-account', methods=['GET', 'POST'])
+@login_required
+def my_account():
+    """View and edit user account settings"""
+    from models.location import Location
+    from werkzeug.security import check_password_hash, generate_password_hash
+    from database import db
+    
+    all_locations = Location.find_all()
+    message = None
+    error = None
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_profile':
+            # Update profile info
+            full_name = request.form.get('full_name', '').strip()
+            email = request.form.get('email', '').strip()
+            location_id = request.form.get('location_id')
+            
+            if full_name and email:
+                current_user.full_name = full_name
+                current_user.email = email
+                if location_id:
+                    current_user.location_id = location_id
+                db.session.commit()
+                message = "Profile updated successfully!"
+            else:
+                error = "Name and email are required."
+        
+        elif action == 'change_password':
+            # Change password
+            current_password = request.form.get('current_password', '')
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            if not current_password or not new_password or not confirm_password:
+                error = "All password fields are required."
+            elif new_password != confirm_password:
+                error = "New passwords do not match."
+            elif len(new_password) < 6:
+                error = "New password must be at least 6 characters."
+            elif not check_password_hash(current_user.password_hash, current_password):
+                error = "Current password is incorrect."
+            else:
+                current_user.password_hash = generate_password_hash(new_password)
+                db.session.commit()
+                message = "Password changed successfully!"
+    
+    return render_template('user/my_account.html',
+                          all_locations=all_locations,
+                          message=message,
+                          error=error)

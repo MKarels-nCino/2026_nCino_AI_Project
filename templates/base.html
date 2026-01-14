@@ -70,21 +70,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('user_routes.boards') }}">
-                            <i class="bi bi-grid me-2"></i> Boards
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('cart_routes.view_cart') }}">
-                            <i class="bi bi-cart me-2"></i> Cart
-                            {% if session.get('cart') %}
-                            <span class="badge bg-danger" id="cartBadge">{{ session.get('cart')|length }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('user_routes.my_checkouts') }}">
-                            <i class="bi bi-clock-history me-2"></i> My Checkouts
+                            <i class="bi bi-bookmark me-2"></i> My Reservations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user_routes.my_account') }}">
+                            <i class="bi bi-person-gear me-2"></i> My Account
                         </a>
                     </li>
                     {% if current_user.is_admin() %}
