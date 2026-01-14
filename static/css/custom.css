@@ -293,7 +293,8 @@ main.container {
     border-left-color: var(--teal-dark);
 }
 
-.board-card .checkout-btn {
+.board-card .checkout-btn,
+.board-card .add-to-cart-btn {
     margin-top: auto;
     width: 100%;
     background-color: var(--teal-color) !important;
@@ -302,17 +303,37 @@ main.container {
     font-weight: 500;
 }
 
-.board-card .checkout-btn:hover {
+.board-card .checkout-btn:hover,
+.board-card .add-to-cart-btn:hover {
     background-color: var(--teal-dark) !important;
     border-color: var(--teal-dark) !important;
     color: #000 !important;
 }
 
-.board-card .checkout-btn:focus {
+.board-card .checkout-btn:focus,
+.board-card .add-to-cart-btn:focus {
     background-color: var(--teal-color) !important;
     border-color: var(--teal-color) !important;
     color: #333 !important;
     box-shadow: 0 0 0 0.2rem rgba(32, 178, 170, 0.25);
+}
+
+.board-card .add-to-cart-btn:disabled {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #fff !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.board-card.unavailable {
+    opacity: 0.7;
+    border-left-color: #dc3545 !important;
+}
+
+.board-card.unavailable:hover {
+    border-left-color: #dc3545 !important;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2) !important;
 }
 
 .board-card.status-transition {
@@ -417,4 +438,95 @@ h1, h2, h3, h4, h5, h6 {
 img {
     max-width: 100%;
     height: auto;
+}
+
+/* Cart styles */
+.bg-teal {
+    background-color: var(--teal-color) !important;
+}
+
+/* Cart badge - no icons, just the number */
+#headerCartBadge::before,
+#cartBadge::before {
+    content: "" !important;
+}
+
+.btn-teal {
+    background-color: var(--teal-color) !important;
+    border-color: var(--teal-color) !important;
+    color: #333 !important;
+    font-weight: 600;
+}
+
+.btn-teal:hover {
+    background-color: var(--teal-dark) !important;
+    border-color: var(--teal-dark) !important;
+    color: #000 !important;
+}
+
+.board-cart-item {
+    transition: all 0.3s ease;
+}
+
+.board-cart-item:hover {
+    box-shadow: 0 4px 8px rgba(32, 178, 170, 0.2);
+}
+
+/* Scheduled and In Use badges */
+.scheduled-badge {
+    background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%) !important;
+    color: #000 !important;
+    font-weight: 600;
+    padding: 0.5em 1em !important;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+    font-size: 0.85rem;
+}
+
+.in-use-badge {
+    background: linear-gradient(135deg, #28A745 0%, #20C997 100%) !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding: 0.5em 1em !important;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    font-size: 0.85rem;
+}
+
+/* Star Rating */
+.star-rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+
+.star-rating input[type="radio"] {
+    display: none;
+}
+
+.star-label {
+    font-size: 2rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.star-label:hover,
+.star-label:hover ~ .star-label {
+    color: #FFC107;
+}
+
+.star-rating input[type="radio"]:checked ~ .star-label,
+.star-label.active {
+    color: #FFC107;
+}
+
+.star-rating input[type="radio"]:checked ~ .star-label ~ .star-label {
+    color: #FFC107;
+}
+
+/* Rating Modal */
+.modal-header.bg-teal {
+    background-color: var(--teal-color) !important;
 }

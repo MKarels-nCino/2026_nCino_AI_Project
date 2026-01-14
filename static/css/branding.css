@@ -61,6 +61,12 @@
     content: "⚠️ ";
 }
 
+/* Cart badge should NOT have any icon - override the above */
+#headerCartBadge::before,
+#cartBadge::before {
+    content: "" !important;
+}
+
 /* Welcome message styling */
 .welcome-message {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);

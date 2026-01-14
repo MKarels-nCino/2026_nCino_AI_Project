@@ -79,6 +79,24 @@ class TimezoneService:
         local_dt = self.to_location_timezone(dt, location_id)
         return local_dt.strftime(format_str)
     
+    def format_datetime_12hour(self, dt, location_id, location_name=None):
+        """Format datetime in 12-hour format with AM/PM, timezone, and location"""
+        if dt is None:
+            return None
+        tz = self.get_location_timezone(location_id)
+        local_dt = self.to_location_timezone(dt, location_id)
+        
+        # Format: "Jan 16, 2026 at 5:00 PM EST (Miami Location)"
+        date_str = local_dt.strftime('%b %d, %Y')
+        time_str = local_dt.strftime('%I:%M %p').lstrip('0')  # Remove leading zero from hour
+        tz_str = local_dt.strftime('%Z')
+        
+        result = f"{date_str} at {time_str} {tz_str}"
+        if location_name:
+            result += f" ({location_name})"
+        
+        return result
+    
     def is_unlock_time_passed(self, unlock_time, location_id):
         """Check if unlock time has passed in location's timezone"""
         now = self.now_in_location(location_id)

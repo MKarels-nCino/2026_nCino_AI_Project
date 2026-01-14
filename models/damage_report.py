@@ -1,4 +1,4 @@
-"""Damage report model - Represents a board damage report"""
+"""Damage report model - Represents a board damage report using SQLAlchemy"""
 import uuid
 from datetime import datetime
 from database import db
@@ -8,8 +8,9 @@ from utils.constants import (
 )
 
 
-class DamageReport:
+class DamageReport(db.Model):
     """Represents a damage report for a board"""
+    __tablename__ = 'damage_reports'
     
     STATUS_NEW = DAMAGE_STATUS_NEW
     STATUS_IN_REPAIR = DAMAGE_STATUS_IN_REPAIR
@@ -19,10 +20,22 @@ class DamageReport:
     SEVERITY_MODERATE = DAMAGE_SEVERITY_MODERATE
     SEVERITY_SEVERE = DAMAGE_SEVERITY_SEVERE
     
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    checkout_id = db.Column(db.String(36), db.ForeignKey('checkouts.id', ondelete='SET NULL'), nullable=True)
+    board_id = db.Column(db.String(36), db.ForeignKey('boards.id', ondelete='CASCADE'), nullable=False)
+    reported_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    severity = db.Column(db.String(50), default=DAMAGE_SEVERITY_MODERATE, nullable=False)
+    status = db.Column(db.String(50), default=DAMAGE_STATUS_NEW, nullable=False)
+    admin_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
     def __init__(self, id=None, checkout_id=None, board_id=None, reported_by=None,
                  description=None, severity=None, status=None, admin_notes=None,
                  created_at=None, updated_at=None):
-        self.id = id or str(uuid.uuid4())
+        if id:
+            self.id = id
         self.checkout_id = checkout_id
         self.board_id = board_id
         self.reported_by = reported_by
@@ -30,109 +43,48 @@ class DamageReport:
         self.severity = severity or self.SEVERITY_MODERATE
         self.status = status or self.STATUS_NEW
         self.admin_notes = admin_notes
-        self.created_at = created_at
-        self.updated_at = updated_at
+        if created_at:
+            self.created_at = created_at
+        if updated_at:
+            self.updated_at = updated_at
     
     @classmethod
     def find_by_id(cls, report_id):
         """Find a damage report by ID"""
-        query = """
-            SELECT id, checkout_id, board_id, reported_by, description, severity,
-                   status, admin_notes, created_at, updated_at
-            FROM damage_reports
-            WHERE id = %s
-        """
-        result = db.execute_query(query, (report_id,), fetch_one=True)
-        if result:
-            return cls(**result)
-        return None
+        return cls.query.get(report_id)
     
     @classmethod
     def find_by_board(cls, board_id):
         """Find all damage reports for a board"""
-        query = """
-            SELECT id, checkout_id, board_id, reported_by, description, severity,
-                   status, admin_notes, created_at, updated_at
-            FROM damage_reports
-            WHERE board_id = %s
-            ORDER BY created_at DESC
-        """
-        results = db.execute_query(query, (board_id,), fetch_all=True)
-        return [cls(**row) for row in results] if results else []
+        return cls.query.filter_by(board_id=board_id).order_by(cls.created_at.desc()).all()
     
     @classmethod
     def find_by_status(cls, status):
         """Find damage reports by status"""
-        query = """
-            SELECT id, checkout_id, board_id, reported_by, description, severity,
-                   status, admin_notes, created_at, updated_at
-            FROM damage_reports
-            WHERE status = %s
-            ORDER BY created_at DESC
-        """
-        results = db.execute_query(query, (status,), fetch_all=True)
-        return [cls(**row) for row in results] if results else []
+        return cls.query.filter_by(status=status).order_by(cls.created_at.desc()).all()
     
     @classmethod
     def find_by_location(cls, location_id, status=None):
         """Find damage reports at a location"""
+        from models.board import Board
+        query = cls.query.join(Board).filter(Board.location_id == location_id)
         if status:
-            query = """
-                SELECT dr.id, dr.checkout_id, dr.board_id, dr.reported_by, dr.description,
-                       dr.severity, dr.status, dr.admin_notes, dr.created_at, dr.updated_at
-                FROM damage_reports dr
-                JOIN boards b ON dr.board_id = b.id
-                WHERE b.location_id = %s AND dr.status = %s
-                ORDER BY dr.created_at DESC
-            """
-            results = db.execute_query(query, (location_id, status), fetch_all=True)
-        else:
-            query = """
-                SELECT dr.id, dr.checkout_id, dr.board_id, dr.reported_by, dr.description,
-                       dr.severity, dr.status, dr.admin_notes, dr.created_at, dr.updated_at
-                FROM damage_reports dr
-                JOIN boards b ON dr.board_id = b.id
-                WHERE b.location_id = %s
-                ORDER BY dr.created_at DESC
-            """
-            results = db.execute_query(query, (location_id,), fetch_all=True)
-        return [cls(**row) for row in results] if results else []
+            query = query.filter(cls.status == status)
+        return query.order_by(cls.created_at.desc()).all()
     
     def save(self):
-        """Save damage report to database (insert or update)"""
-        if self.find_by_id(self.id):
-            # Update existing
-            query = """
-                UPDATE damage_reports
-                SET checkout_id = %s, board_id = %s, reported_by = %s, description = %s,
-                    severity = %s, status = %s, admin_notes = %s
-                WHERE id = %s
-            """
-            db.execute_query(query, (self.checkout_id, self.board_id, self.reported_by,
-                                   self.description, self.severity, self.status,
-                                   self.admin_notes, self.id))
-        else:
-            # Insert new
-            query = """
-                INSERT INTO damage_reports (id, checkout_id, board_id, reported_by,
-                                          description, severity, status, admin_notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            db.execute_query(query, (self.id, self.checkout_id, self.board_id,
-                                    self.reported_by, self.description, self.severity,
-                                    self.status, self.admin_notes))
+        """Save damage report to database"""
+        db.session.add(self)
+        db.session.commit()
+        return self
     
     def update_status(self, new_status, admin_notes=None):
         """Update damage report status"""
-        query = """
-            UPDATE damage_reports
-            SET status = %s, admin_notes = %s
-            WHERE id = %s
-        """
-        db.execute_query(query, (new_status, admin_notes, self.id))
         self.status = new_status
         if admin_notes:
             self.admin_notes = admin_notes
+        self.updated_at = datetime.utcnow()
+        db.session.commit()
     
     def to_dict(self):
         """Convert to dictionary for JSON serialization"""
@@ -148,3 +100,6 @@ class DamageReport:
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+    
+    def __repr__(self):
+        return f'<DamageReport {self.id} - {self.status}>'

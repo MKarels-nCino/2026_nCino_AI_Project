@@ -27,6 +27,20 @@
             {% if current_user.is_authenticated %}
             <div class="d-flex align-items-center">
                 <ul class="navbar-nav d-flex flex-row align-items-center me-3">
+                    <li class="nav-item me-3">
+                        <a href="{{ url_for('cart_routes.view_cart') }}" class="nav-link d-flex align-items-center position-relative" style="padding: 0.5rem 0.5rem; text-decoration: none; color: inherit;">
+                            <i class="bi bi-cart3" style="font-size: 1.5rem;"></i>
+                            {% if session.get('cart') and session.get('cart')|length > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="headerCartBadge" style="font-size: 0.65rem; padding: 0.25em 0.5em; min-width: 1.2em; text-align: center; line-height: 1.2;">
+                                {{ session.get('cart')|length }}
+                            </span>
+                            {% else %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="headerCartBadge" style="font-size: 0.65rem; padding: 0.25em 0.5em; display: none; min-width: 1.2em; text-align: center; line-height: 1.2;">
+                                0
+                            </span>
+                            {% endif %}
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <span class="navbar-text d-flex align-items-center">
                             <i class="bi bi-person-circle me-2"></i> {{ current_user.full_name }}
@@ -58,6 +72,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('user_routes.boards') }}">
                             <i class="bi bi-grid me-2"></i> Boards
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('cart_routes.view_cart') }}">
+                            <i class="bi bi-cart me-2"></i> Cart
+                            {% if session.get('cart') %}
+                            <span class="badge bg-danger" id="cartBadge">{{ session.get('cart')|length }}</span>
+                            {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
@@ -97,7 +119,7 @@
     
     <!-- Connection Status Indicator - Hidden by default, only shows when disconnected -->
     {% if current_user.is_authenticated %}
-    <div class="connection-indicator disconnected" id="connectionIndicator" style="display: none;">
+    <div class="connection-indicator disconnected" id="connectionIndicator" style="display: none !important;">
         <span class="badge bg-danger">
             <i class="bi bi-wifi-off"></i> Disconnected
         </span>
@@ -137,6 +159,9 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/cart_handler.js') }}"></script>
+    {% endif %}
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

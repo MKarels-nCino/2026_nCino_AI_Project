@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Cart - Wipeout & Chill{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-2">
+            <i class="bi bi-cart"></i> Shopping Cart
+        </h1>
+        <p class="text-muted mb-4">Review your boards and select your checkout date and time! 🏄‍♂️</p>
+    </div>
+</div>
+
+{% if cart_items %}
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-teal text-white">
+                <h5 class="mb-0"><i class="bi bi-grid"></i> Boards in Cart ({{ cart_items|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% for board in cart_items %}
+                <div class="card mb-3 board-cart-item" data-board-id="{{ board.id }}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-12 col-md-3">
+                                {% if board.image_url %}
+                                <img src="{{ url_for('static', filename=board.image_url) }}" 
+                                     alt="{{ board.name }}" 
+                                     class="img-fluid rounded"
+                                     style="max-height: 120px; object-fit: cover; width: 100%;">
+                                {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                     style="height: 120px;">
+                                    <i class="bi bi-image" style="font-size: 3rem; color: #ccc;"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-7">
+                                <h5 class="card-title mb-1">{{ board.name }}</h5>
+                                {% if board.brand %}<p class="text-muted mb-1"><strong>{{ board.brand }}</strong></p>{% endif %}
+                                {% if board.size %}<p class="text-muted mb-1">Size: {{ board.size }}</p>{% endif %}
+                                {% if board.condition %}
+                                <p class="text-muted mb-0">
+                                    Condition: 
+                                    {% if board.condition == 'excellent' %}
+                                        <span class="text-success">Excellent</span>
+                                    {% elif board.condition == 'good' %}
+                                        <span class="text-info">Good</span>
+                                    {% else %}
+                                        <span class="text-warning">Fair</span>
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-2 text-end">
+                                <button class="btn btn-sm btn-danger remove-from-cart-btn" data-board-id="{{ board.id }}">
+                                    <i class="bi bi-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-teal text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Checkout Details</h5>
+            </div>
+            <div class="card-body">
+                {% if current_location %}
+                <p class="mb-3">
+                    <strong>Location:</strong> {{ current_location.name }}<br>
+                    <small class="text-muted">Timezone: {{ current_location.timezone }}</small>
+                </p>
+                {% endif %}
+                
+                <form id="checkoutForm">
+                    <div class="mb-3">
+                        <label for="checkoutDate" class="form-label">Checkout Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="checkoutDate" 
+                               name="checkout_date" 
+                               value="{{ checkout_date if checkout_date else '' }}"
+                               required
+                               readonly>
+                        <small class="text-muted">Set on dashboard</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="checkoutHour" class="form-label">Start Hour</label>
+                        <select class="form-select" id="checkoutHour" name="checkout_hour" required style="background-color: #e9ecef; cursor: not-allowed;" onfocus="this.blur()">
+                            <option value="1" {% if checkout_hour == '1' %}selected{% endif %}>1:00 AM</option>
+                            <option value="2" {% if checkout_hour == '2' %}selected{% endif %}>2:00 AM</option>
+                            <option value="3" {% if checkout_hour == '3' %}selected{% endif %}>3:00 AM</option>
+                            <option value="4" {% if checkout_hour == '4' %}selected{% endif %}>4:00 AM</option>
+                            <option value="5" {% if checkout_hour == '5' %}selected{% endif %}>5:00 AM</option>
+                            <option value="6" {% if checkout_hour == '6' %}selected{% endif %}>6:00 AM</option>
+                            <option value="7" {% if checkout_hour == '7' %}selected{% endif %}>7:00 AM</option>
+                            <option value="8" {% if checkout_hour == '8' or not checkout_hour %}selected{% endif %}>8:00 AM</option>
+                            <option value="9" {% if checkout_hour == '9' %}selected{% endif %}>9:00 AM</option>
+                            <option value="10" {% if checkout_hour == '10' %}selected{% endif %}>10:00 AM</option>
+                            <option value="11" {% if checkout_hour == '11' %}selected{% endif %}>11:00 AM</option>
+                            <option value="12" {% if checkout_hour == '12' %}selected{% endif %}>12:00 PM</option>
+                            <option value="13" {% if checkout_hour == '13' %}selected{% endif %}>1:00 PM</option>
+                            <option value="14" {% if checkout_hour == '14' %}selected{% endif %}>2:00 PM</option>
+                            <option value="15" {% if checkout_hour == '15' %}selected{% endif %}>3:00 PM</option>
+                            <option value="16" {% if checkout_hour == '16' %}selected{% endif %}>4:00 PM</option>
+                            <option value="17" {% if checkout_hour == '17' %}selected{% endif %}>5:00 PM</option>
+                            <option value="18" {% if checkout_hour == '18' %}selected{% endif %}>6:00 PM</option>
+                            <option value="19" {% if checkout_hour == '19' %}selected{% endif %}>7:00 PM</option>
+                            <option value="20" {% if checkout_hour == '20' %}selected{% endif %}>8:00 PM</option>
+                            <option value="21" {% if checkout_hour == '21' %}selected{% endif %}>9:00 PM</option>
+                            <option value="22" {% if checkout_hour == '22' %}selected{% endif %}>10:00 PM</option>
+                            <option value="23" {% if checkout_hour == '23' %}selected{% endif %}>11:00 PM</option>
+                            <option value="0" {% if checkout_hour == '0' %}selected{% endif %}>12:00 AM</option>
+                        </select>
+                        <small class="text-muted">Set on dashboard - <a href="{{ url_for('user_routes.dashboard') }}">Change</a></small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="checkoutDuration" class="form-label">Duration (Hours)</label>
+                        <select class="form-select" id="checkoutDuration" name="checkout_duration" required style="background-color: #e9ecef; cursor: not-allowed;" onfocus="this.blur()">
+                            {% for i in range(1, 25) %}
+                            <option value="{{ i }}" {% if checkout_duration == i|string or (not checkout_duration and i == 1) %}selected{% endif %}>{{ i }} hour{% if i > 1 %}s{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Set on dashboard - <a href="{{ url_for('user_routes.dashboard') }}">Change</a></small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <small>
+                            <strong>Rental Policy:</strong><br>
+                            • Rentals are hourly (1-24 hours)<br>
+                            • Select your start time and duration<br>
+                            All times are in {{ current_location.timezone if current_location else 'local' }} timezone.
+                        </small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-teal w-100 btn-lg" id="checkoutBtn">
+                        <i class="bi bi-cart-check"></i> Complete Checkout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="bi bi-cart-x" style="font-size: 3rem;"></i>
+            <p class="mt-2 mb-3">Your cart is empty!</p>
+            <a href="{{ url_for('user_routes.dashboard') }}" class="btn btn-teal">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Values are already set from session (dashboard selections)
+    // Form fields are readonly/disabled, so no need to set them here
+    
+    // Remove from cart
+    document.querySelectorAll('.remove-from-cart-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const boardId = this.dataset.boardId;
+            const boardCard = document.querySelector(`[data-board-id="${boardId}"]`);
+            
+            fetch(`/cart/remove/${boardId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (boardCard) {
+                        boardCard.style.transition = 'all 0.3s ease';
+                        boardCard.style.transform = 'scale(0)';
+                        setTimeout(() => {
+                            boardCard.remove();
+                            // Reload if cart is empty
+                            if (data.cart_count === 0) {
+                                window.location.reload();
+                            }
+                        }, 300);
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('Board removed from cart', 'success');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Remove error:', error);
+                if (typeof showToast === 'function') {
+                    showToast('Failed to remove board from cart', 'error');
+                }
+            });
+        });
+    });
+    
+    // Checkout form submission
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            checkoutBtn.disabled = true;
+            checkoutBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            
+            // Get values from readonly/disabled fields
+            const checkoutDateInput = document.getElementById('checkoutDate');
+            const checkoutHourSelect = document.getElementById('checkoutHour');
+            const checkoutDurationSelect = document.getElementById('checkoutDuration');
+            
+            const formData = {
+                checkout_date: checkoutDateInput.value,
+                checkout_hour: checkoutHourSelect.value,
+                duration_hours: parseInt(checkoutDurationSelect.value)
+            };
+            
+            fetch('/cart/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof showToast === 'function') {
+                        showToast(`🎉 Successfully checked out ${data.checkouts.length} board(s)! Time to make some memories!`, 'success');
+                    }
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("user_routes.dashboard") }}';
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Checkout failed');
+                }
+            })
+            .catch(error => {
+                console.error('Checkout error:', error);
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = '<i class="bi bi-cart-check"></i> Complete Checkout';
+                if (typeof showToast === 'function') {
+                    showToast(`Checkout failed: ${error.message}`, 'error');
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

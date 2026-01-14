@@ -6,5 +6,8 @@ from .user import User
 from .board import Board
 from .checkout import Checkout
 from .reservation import Reservation
+from .activity_log import ActivityLog
+from .damage_report import DamageReport
+from .board_rating import BoardRating
 
-__all__ = ["Location", "User", "Board", "Checkout", "Reservation"]
+__all__ = ["Location", "User", "Board", "Checkout", "Reservation", "ActivityLog", "DamageReport", "BoardRating"]

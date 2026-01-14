@@ -127,6 +127,18 @@ def return_board(checkout_id):
         checkout = checkout_service.return_board(
             checkout_id, current_user.id, location_id, damage_report, ip_address
         )
+        
+        # Handle rating if provided
+        if request.json and request.json.get("rating"):
+            from models.board_rating import BoardRating
+            rating = BoardRating(
+                board_id=checkout.board_id,
+                user_id=current_user.id,
+                checkout_id=checkout_id,
+                rating=int(request.json.get("rating")),
+                review=request.json.get("review")
+            )
+            rating.save()
 
         # Emit real-time update
         try:
@@ -199,6 +211,25 @@ def create_reservation(board_id, checkout_id):
         return jsonify({"success": True, "reservation": reservation.to_dict()}), 200
     except Exception as e:
         logger.error(f"Reservation error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+@api_routes.route("/fulfill-reservation/<reservation_id>", methods=["POST"])
+@login_required
+def fulfill_reservation(reservation_id):
+    """API endpoint to fulfill a reservation"""
+    try:
+        location_id = get_selected_location_id()
+        if not location_id:
+            return jsonify({"success": False, "error": "No location selected"}), 400
+
+        ip_address = request.remote_addr
+        reservation = reservation_service.fulfill_reservation(
+            reservation_id, current_user.id, location_id, ip_address
+        )
+        return jsonify({"success": True, "reservation": reservation.to_dict()}), 200
+    except Exception as e:
+        logger.error(f"Fulfill reservation error: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
 
 

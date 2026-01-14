@@ -85,6 +85,54 @@ class Board(db.Model):
         """Check if board is available for checkout"""
         return self.status == self.STATUS_AVAILABLE
     
+    def is_available_at_datetime(self, checkout_datetime, duration_hours=1):
+        """
+        Check if board is available at a specific datetime for the given duration
+        Checks both active/scheduled checkouts and reservations for time overlap
+        Returns: (is_available, reason)
+        """
+        from models.checkout import Checkout
+        from models.reservation import Reservation
+        from datetime import timedelta
+        
+        # Convert checkout_datetime to naive UTC for comparison (strip timezone info)
+        if checkout_datetime.tzinfo is not None:
+            checkout_start = checkout_datetime.replace(tzinfo=None)
+        else:
+            checkout_start = checkout_datetime
+        
+        checkout_end = checkout_start + timedelta(hours=duration_hours)
+        
+        # Check for active checkouts that overlap (STATUS_ACTIVE includes both scheduled and in-use)
+        active_checkouts = Checkout.query.filter_by(
+            board_id=self.id,
+            status=Checkout.STATUS_ACTIVE
+        ).all()
+        
+        for checkout in active_checkouts:
+            # Get checkout time range (database times are naive UTC)
+            existing_start = checkout.checkout_time
+            existing_end = checkout.expected_return_time or (existing_start + timedelta(hours=1))
+            
+            # Check for time overlap: new checkout overlaps if it starts before existing ends AND ends after existing starts
+            if checkout_start < existing_end and checkout_end > existing_start:
+                return False, "Reserved"
+        
+        # Check for pending/available reservations that overlap (by date for now)
+        reservations = Reservation.query.filter_by(
+            board_id=self.id
+        ).filter(
+            Reservation.status.in_([Reservation.STATUS_PENDING, Reservation.STATUS_AVAILABLE])
+        ).all()
+        
+        for reservation in reservations:
+            reservation_date = reservation.unlock_time.date()
+            # Only mark as reserved if dates overlap
+            if checkout_start.date() == reservation_date:
+                return False, "Reserved"
+        
+        return True, None
+    
     def save(self):
         """Save board to database"""
         db.session.add(self)

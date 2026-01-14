@@ -38,6 +38,10 @@ def get_selected_location_id():
 @login_required
 def dashboard():
     """User dashboard"""
+    from datetime import datetime, timedelta
+    from models.board import Board
+    import pytz
+    
     location_id = get_selected_location_id()
     
     # Ensure we always have a location selected
@@ -50,25 +54,131 @@ def dashboard():
     # Get all locations for the selector
     all_locations = Location.find_all()
     
-    # Get available boards for selected location
-    available_boards = Board.find_available(location_id) if location_id else []
+    # Get selected date, hour, and duration from request (if provided)
+    # Also check session for previously selected values
+    selected_date = request.args.get('selected_date') or session.get('checkout_date')
+    selected_hour = request.args.get('selected_hour') or session.get('checkout_hour')
+    selected_duration = request.args.get('selected_duration') or session.get('checkout_duration', '1')
+    selected_datetime_utc = None
     
-    # Get user's active checkouts (across all locations)
-    active_checkouts = Checkout.find_active_by_user(current_user.id)
+    # Default to next day at 8 AM if not provided
+    if not selected_date or not selected_hour:
+        if location_id:
+            tz = timezone_service.get_location_timezone(location_id)
+            now_local = timezone_service.now_in_location(location_id)
+            next_day = now_local + timedelta(days=1)
+            next_day_8am = next_day.replace(hour=8, minute=0, second=0, microsecond=0)
+            selected_date = next_day_8am.strftime('%Y-%m-%d')
+            selected_hour = '8'
+            selected_duration = '1'
     
-    # Get user's reservations (across all locations)
+    # Save selected values to session for use in cart
+    if selected_date and selected_hour:
+        session['checkout_date'] = selected_date
+        session['checkout_hour'] = selected_hour
+        session['checkout_duration'] = selected_duration
+        session.permanent = True
+    
+    if selected_date and selected_hour:
+        try:
+            # Parse date and hour (hour is 0-23)
+            hour = int(selected_hour)
+            # Create datetime with hour only (minutes = 0)
+            selected_datetime_local = datetime.strptime(f"{selected_date} {hour:02d}:00", '%Y-%m-%d %H:%M')
+            # Convert to UTC using location timezone
+            if location_id:
+                tz = timezone_service.get_location_timezone(location_id)
+                selected_datetime_local = tz.localize(selected_datetime_local)
+                selected_datetime_utc = selected_datetime_local.astimezone(pytz.UTC)
+        except (ValueError, TypeError):
+            selected_datetime_utc = None
+    
+    # Get all boards for selected location (not just available)
+    all_boards = Board.find_by_location(location_id) if location_id else []
+    
+    # Get duration as integer for availability check
+    duration_hours = int(selected_duration) if selected_duration else 1
+    
+    # Check availability for each board at selected datetime
+    available_boards = []
+    for board in all_boards:
+        if selected_datetime_utc:
+            is_available, reason = board.is_available_at_datetime(selected_datetime_utc, duration_hours)
+            board.availability_at_time = is_available
+            board.availability_reason = reason if not is_available else None
+        else:
+            # If no datetime selected, use current availability
+            board.availability_at_time = board.is_available()
+            board.availability_reason = None if board.is_available() else "Not available"
+        
+        available_boards.append(board)
+    
+    # Get all active checkouts (across all locations)
+    # Combine everything into reservations section:
+    # - Scheduled: checkout_time > now
+    # - In Use: checkout_time <= now
+    all_active_checkouts = Checkout.find_active_by_user(current_user.id)
+    now = datetime.utcnow()
+    
+    # Get actual reservations
     reservations = Reservation.find_by_user(current_user.id)
+    
+    # Combine all checkouts and reservations into one list for display
+    all_items = []
+    
+    # Add checkouts (both scheduled and in use)
+    for checkout in all_active_checkouts:
+        board = Board.find_by_id(checkout.board_id)
+        checkout.board = board
+        # Get location for checkout
+        if board:
+            location = Location.find_by_id(board.location_id)
+            checkout.location = location
+        checkout.is_checkout = True
+        checkout.status = 'scheduled' if checkout.checkout_time > now else 'in_use'
+        all_items.append(checkout)
+    
+    # Add actual reservations (only pending/available, not cancelled)
+    for reservation in reservations:
+        # Skip cancelled reservations
+        if reservation.status == Reservation.STATUS_CANCELLED:
+            continue
+        board = Board.find_by_id(reservation.board_id)
+        reservation.board = board
+        # Get location from board
+        if board:
+            location = Location.find_by_id(board.location_id)
+            reservation.location = location
+        reservation.is_checkout = False
+        all_items.append(reservation)
+    
+    # Sort by date (scheduled first, then in use, then reservations)
+    def sort_key(x):
+        if hasattr(x, 'is_checkout') and x.is_checkout:
+            if x.checkout_time > now:
+                return (0, x.checkout_time)  # Scheduled first
+            else:
+                return (1, x.checkout_time)  # In use second
+        else:
+            unlock = x.unlock_time if hasattr(x, 'unlock_time') else datetime.min
+            return (2, unlock)  # Reservations third
+    
+    all_items.sort(key=sort_key)
     
     # Get current location object
     current_location = Location.find_by_id(location_id) if location_id else None
     
     return render_template('user/dashboard.html',
                          available_boards=available_boards,
-                         active_checkouts=active_checkouts,
-                         reservations=reservations,
+                         all_items=all_items,
                          all_locations=all_locations,
                          current_location=current_location,
-                         selected_location_id=location_id)
+                         selected_location_id=location_id,
+                         selected_date=selected_date,
+                         selected_hour=selected_hour,
+                         selected_duration=selected_duration,
+                         now=now,
+                         timezone_service=timezone_service)
 
 
 @user_routes.route('/switch-location', methods=['POST'])
@@ -110,14 +220,23 @@ def boards():
 @user_routes.route('/my-checkouts')
 @login_required
 def my_checkouts():
-    """View user's checkout history"""
+    """View user's active checkouts (only checkouts where checkout_time has passed)"""
     from models.board import Board
-    checkouts = Checkout.find_by_user(current_user.id, limit=50)
+    from datetime import datetime
+    
+    # Get all active checkouts for user
+    all_active = Checkout.find_active_by_user(current_user.id)
+    
+    # Filter to only show checkouts where checkout_time has passed (currently in progress)
+    now = datetime.utcnow()
+    active_checkouts = [c for c in all_active if c.checkout_time <= now]
+    
     # Get board info for each checkout
-    for checkout in checkouts:
+    for checkout in active_checkouts:
         board = Board.find_by_id(checkout.board_id)
         checkout.board = board
-    return render_template('user/my_checkouts.html', checkouts=checkouts)
+    
+    return render_template('user/my_checkouts.html', checkouts=active_checkouts)
 
 
 @user_routes.route('/reservations')

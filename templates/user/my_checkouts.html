@@ -6,9 +6,9 @@
 <div class="row">
     <div class="col-12">
         <h1 class="mb-2">
-            <i class="bi bi-clock-history"></i> My Checkout History
+            <i class="bi bi-clock-history"></i> My Active Reservations
         </h1>
-        <p class="text-muted mb-4">All your surfing adventures (and wipeouts) in one place! 🏄‍♂️</p>
+        <p class="text-muted mb-4">Your current checkouts and reservation history! 🏄‍♂️</p>
     </div>
 </div>
 
@@ -21,7 +21,7 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Board ID</th>
+                                <th>Board</th>
                                 <th>Checkout Time</th>
                                 <th>Expected Return</th>
                                 <th>Actual Return</th>
@@ -32,7 +32,15 @@
                         <tbody>
                             {% for checkout in checkouts %}
                             <tr>
-                                <td>{{ checkout.board.name if checkout.board else checkout.board_id }}</td>
+                                <td>
+                                    {% if checkout.board %}
+                                        <strong>{{ checkout.board.name }}</strong>
+                                        {% if checkout.board.brand %}<br><small class="text-muted">{{ checkout.board.brand }}</small>{% endif %}
+                                        {% if checkout.board.size %}<br><small class="text-muted">Size: {{ checkout.board.size }}</small>{% endif %}
+                                    {% else %}
+                                        {{ checkout.board_id }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ checkout.checkout_time.strftime('%Y-%m-%d %H:%M') if checkout.checkout_time else 'N/A' }}</td>
                                 <td>{{ checkout.expected_return_time.strftime('%Y-%m-%d %H:%M') if checkout.expected_return_time else 'N/A' }}</td>
                                 <td>{{ checkout.actual_return_time.strftime('%Y-%m-%d %H:%M') if checkout.actual_return_time else '-' }}</td>

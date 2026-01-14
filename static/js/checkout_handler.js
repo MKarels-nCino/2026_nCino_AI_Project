@@ -26,8 +26,14 @@ class CheckoutHandler {
         });
     }
     
-    async handleCheckout(boardId) {
+    async handleCheckout(boardId, btn) {
         try {
+            // Disable button to prevent double-clicks
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking out...';
+            }
+            
             // Optimistic UI update
             const boardCard = document.querySelector(`[data-board-id="${boardId}"]`);
             if (boardCard) {
@@ -44,31 +50,40 @@ class CheckoutHandler {
             
             const data = await response.json();
             
-            if (data.success) {
-                if (typeof showToast === 'function') {
-                    showToast('🎉 Board checked out! Time to make some memories (and probably some wipeouts)!', 'success');
-                }
-                
-                // Remove board from available list
-                if (boardCard) {
-                    boardCard.style.transition = 'all 0.3s ease';
-                    boardCard.style.transform = 'scale(0)';
-                    setTimeout(() => {
-                        boardCard.remove();
-                    }, 300);
-                }
-                
-                // Reload page to show updated checkouts
-                setTimeout(() => {
-                    window.location.reload();
-                }, 500);
-            } else {
+            if (!response.ok || !data.success) {
                 throw new Error(data.error || 'Checkout failed');
             }
+            
+            // Success!
+            if (typeof showToast === 'function') {
+                showToast('🎉 Board checked out! Time to make some memories (and probably some wipeouts)!', 'success');
+            }
+            
+            // Remove board from available list with animation
+            if (boardCard) {
+                boardCard.style.transition = 'all 0.3s ease';
+                boardCard.style.transform = 'scale(0)';
+                setTimeout(() => {
+                    boardCard.remove();
+                }, 300);
+            }
+            
+            // Reload page to show updated checkouts
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         } catch (error) {
             console.error('Checkout error:', error);
+            
+            // Re-enable button
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cart-plus"></i> Checkout';
+            }
+            
+            // Show error message
             if (typeof showToast === 'function') {
-                const errorMsg = error.message.includes('not available') 
+                const errorMsg = error.message.includes('not available') || error.message.includes('already checked out')
                     ? 'Someone beat you to it! But don\'t worry, there are more boards in the sea. 🌊'
                     : `That checkout wiped out: ${error.message}. Let's try again!`;
                 showToast(errorMsg, 'error');
@@ -122,9 +137,20 @@ class CheckoutHandler {
     }
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.socketClient) {
-        window.checkoutHandler = new CheckoutHandler(window.socketClient);
+// Initialize on page load - wait for all scripts to load
+(function() {
+    function initCheckoutHandler() {
+        // Wait for socketClient to be available (it's initialized in main.js)
+        const socketClient = window.socketClient || null;
+        window.checkoutHandler = new CheckoutHandler(socketClient);
+        console.log('CheckoutHandler initialized');
     }
-});
+    
+    // Try to initialize immediately if DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCheckoutHandler);
+    } else {
+        // DOM already loaded, but wait a bit for other scripts
+        setTimeout(initCheckoutHandler, 100);
+    }
+})();

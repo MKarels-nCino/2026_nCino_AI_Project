@@ -1,4 +1,4 @@
-"""Activity log model - Represents system activity"""
+"""Activity log model - Represents system activity using SQLAlchemy"""
 import uuid
 from datetime import datetime
 from database import db
@@ -10,8 +10,9 @@ from utils.constants import (
 )
 
 
-class ActivityLog:
+class ActivityLog(db.Model):
     """Represents an activity log entry"""
+    __tablename__ = 'activity_log'
     
     ACTION_CHECKOUT = ACTION_CHECKOUT
     ACTION_RETURN = ACTION_RETURN
@@ -22,101 +23,69 @@ class ActivityLog:
     ACTION_BOARD_STATUS_CHANGE = ACTION_BOARD_STATUS_CHANGE
     ACTION_DAMAGE_STATUS_CHANGE = ACTION_DAMAGE_STATUS_CHANGE
     
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    board_id = db.Column(db.String(36), db.ForeignKey('boards.id', ondelete='SET NULL'), nullable=True)
+    action_type = db.Column(db.String(50), nullable=False)
+    action_details = db.Column(db.Text, nullable=True)  # JSON stored as text
+    location_id = db.Column(db.String(36), db.ForeignKey('locations.id', ondelete='SET NULL'), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ip_address = db.Column(db.String(45), nullable=True)
+    
     def __init__(self, id=None, user_id=None, board_id=None, action_type=None,
                  action_details=None, location_id=None, timestamp=None, ip_address=None):
-        self.id = id or str(uuid.uuid4())
+        if id:
+            self.id = id
         self.user_id = user_id
         self.board_id = board_id
         self.action_type = action_type
-        self.action_details = action_details if isinstance(action_details, dict) else json.loads(action_details) if action_details else {}
+        # Store action_details as JSON string
+        if action_details:
+            if isinstance(action_details, dict):
+                self.action_details = json.dumps(action_details)
+            else:
+                self.action_details = action_details
+        else:
+            self.action_details = None
         self.location_id = location_id
         self.timestamp = timestamp or datetime.utcnow()
         self.ip_address = ip_address
     
+    @property
+    def action_details_dict(self):
+        """Get action_details as a dictionary"""
+        if self.action_details:
+            try:
+                return json.loads(self.action_details)
+            except:
+                return {}
+        return {}
+    
     @classmethod
     def find_by_id(cls, log_id):
         """Find an activity log by ID"""
-        query = """
-            SELECT id, user_id, board_id, action_type, action_details, location_id,
-                   timestamp, ip_address
-            FROM activity_log
-            WHERE id = %s
-        """
-        result = db.execute_query(query, (log_id,), fetch_one=True)
-        if result:
-            if isinstance(result.get('action_details'), str):
-                result['action_details'] = json.loads(result['action_details'])
-            return cls(**result)
-        return None
+        return cls.query.get(log_id)
     
     @classmethod
     def find_by_location(cls, location_id, limit=100):
         """Find activity logs for a location"""
-        query = """
-            SELECT id, user_id, board_id, action_type, action_details, location_id,
-                   timestamp, ip_address
-            FROM activity_log
-            WHERE location_id = %s
-            ORDER BY timestamp DESC
-            LIMIT %s
-        """
-        results = db.execute_query(query, (location_id, limit), fetch_all=True)
-        if results:
-            for result in results:
-                if isinstance(result.get('action_details'), str):
-                    result['action_details'] = json.loads(result['action_details'])
-            return [cls(**row) for row in results]
-        return []
+        return cls.query.filter_by(location_id=location_id).order_by(cls.timestamp.desc()).limit(limit).all()
     
     @classmethod
     def find_by_user(cls, user_id, limit=50):
         """Find activity logs for a user"""
-        query = """
-            SELECT id, user_id, board_id, action_type, action_details, location_id,
-                   timestamp, ip_address
-            FROM activity_log
-            WHERE user_id = %s
-            ORDER BY timestamp DESC
-            LIMIT %s
-        """
-        results = db.execute_query(query, (user_id, limit), fetch_all=True)
-        if results:
-            for result in results:
-                if isinstance(result.get('action_details'), str):
-                    result['action_details'] = json.loads(result['action_details'])
-            return [cls(**row) for row in results]
-        return []
+        return cls.query.filter_by(user_id=user_id).order_by(cls.timestamp.desc()).limit(limit).all()
     
     @classmethod
     def find_by_board(cls, board_id, limit=50):
         """Find activity logs for a board"""
-        query = """
-            SELECT id, user_id, board_id, action_type, action_details, location_id,
-                   timestamp, ip_address
-            FROM activity_log
-            WHERE board_id = %s
-            ORDER BY timestamp DESC
-            LIMIT %s
-        """
-        results = db.execute_query(query, (board_id, limit), fetch_all=True)
-        if results:
-            for result in results:
-                if isinstance(result.get('action_details'), str):
-                    result['action_details'] = json.loads(result['action_details'])
-            return [cls(**row) for row in results]
-        return []
+        return cls.query.filter_by(board_id=board_id).order_by(cls.timestamp.desc()).limit(limit).all()
     
     def save(self):
         """Save activity log to database"""
-        query = """
-            INSERT INTO activity_log (id, user_id, board_id, action_type, action_details,
-                                   location_id, timestamp, ip_address)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        action_details_json = json.dumps(self.action_details) if self.action_details else None
-        db.execute_query(query, (self.id, self.user_id, self.board_id, self.action_type,
-                                action_details_json, self.location_id, self.timestamp,
-                                self.ip_address))
+        db.session.add(self)
+        db.session.commit()
+        return self
     
     @classmethod
     def create_log(cls, user_id, board_id, action_type, action_details, location_id, ip_address=None):
@@ -139,8 +108,11 @@ class ActivityLog:
             'user_id': self.user_id,
             'board_id': self.board_id,
             'action_type': self.action_type,
-            'action_details': self.action_details,
+            'action_details': self.action_details_dict,
             'location_id': self.location_id,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'ip_address': self.ip_address
         }
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.action_type} at {self.timestamp}>'

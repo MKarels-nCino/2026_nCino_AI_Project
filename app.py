@@ -5,11 +5,21 @@ from config import Config
 from database import db
 
 # Import models so SQLAlchemy can create tables
-from models import Location, User, Board, Checkout, Reservation
+from models import (
+    Location,
+    User,
+    Board,
+    Checkout,
+    Reservation,
+    ActivityLog,
+    DamageReport,
+    BoardRating,
+)
 from routes.auth_routes import auth_routes
 from routes.user_routes import user_routes
 from routes.admin_routes import admin_routes
 from routes.api_routes import api_routes
+from routes.cart_routes import cart_routes
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -67,6 +77,7 @@ def create_app():
     app.register_blueprint(user_routes)
     app.register_blueprint(admin_routes)
     app.register_blueprint(api_routes)
+    app.register_blueprint(cart_routes)
 
     @app.route("/")
     def index():

@@ -65,10 +65,38 @@ document.addEventListener('click', function(e) {
         const btn = e.target.closest('.fulfill-btn');
         const reservationId = btn.dataset.reservationId;
         
-        // TODO: Implement fulfillment logic
-        if (typeof showToast === 'function') {
-            showToast('Reservation fulfillment coming soon!', 'info');
-        }
+        // Disable button
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+        
+        fetch(`/api/fulfill-reservation/${reservationId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof showToast === 'function') {
+                    showToast('🎉 Reservation fulfilled! Time to ride!', 'success');
+                }
+                // Redirect to dashboard
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("user_routes.dashboard") }}';
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to fulfill reservation');
+            }
+        })
+        .catch(error => {
+            console.error('Fulfill reservation error:', error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Let\'s Ride!';
+            if (typeof showToast === 'function') {
+                showToast(`Failed to fulfill reservation: ${error.message}`, 'error');
+            }
+        });
     }
     
     if (e.target.closest('.cancel-reservation-btn')) {
