@@ -51,4 +51,5 @@ htmlcov/
 Thumbs.db
 
 # Database
-.db
+*.db
+surfboard_checkout.db
