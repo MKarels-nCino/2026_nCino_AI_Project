@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Wipeout & Chill{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-2">
+            <i class="bi bi-speedometer2"></i> Admin Dashboard
+        </h1>
+        <p class="text-muted mb-4">Keeping the stoke alive! Here's what's happening at your location.</p>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Ready to Ride</h5>
+                <h2 class="mb-0">{{ available_count }}</h2>
+                <small>Boards waiting for adventure</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">Out & About</h5>
+                <h2 class="mb-0">{{ checked_out_count }}</h2>
+                <small>Making memories (and wipeouts)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h5 class="card-title">Taking a Break</h5>
+                <h2 class="mb-0">{{ damaged_count }}</h2>
+                <small>Even boards need rest</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Needs Attention</h5>
+                <h2 class="mb-0">{{ new_damage|length }}</h2>
+                <small>Damage reports to review</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Checkouts -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Adventures</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_checkouts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Board ID</th>
+                                <th>Checkout Time</th>
+                                <th>Expected Return</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for checkout in recent_checkouts %}
+                            <tr>
+                                <td>{{ checkout.user.full_name if checkout.user else checkout.user_id }}</td>
+                                <td>{{ checkout.board_id }}</td>
+                                <td>{{ checkout.checkout_time.strftime('%Y-%m-%d %H:%M') if checkout.checkout_time else 'N/A' }}</td>
+                                <td>{{ checkout.expected_return_time.strftime('%Y-%m-%d %H:%M') if checkout.expected_return_time else 'N/A' }}</td>
+                                <td>
+                                    <span class="badge bg-{% if checkout.status == 'active' %}warning{% elif checkout.status == 'returned' %}success{% else %}secondary{% endif %}">
+                                        {{ checkout.status|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No recent checkouts.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Damage Reports -->
+{% if new_damage %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Boards That Need Some TLC</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for damage in new_damage %}
+                    <a href="{{ url_for('admin_routes.damage_queue') }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Board {{ damage.board_id }}</h6>
+                            <span class="badge bg-danger">{{ damage.severity|title }}</span>
+                        </div>
+                        <p class="mb-1">{{ damage.description[:100] }}{% if damage.description|length > 100 %}...{% endif %}</p>
+                        <small>{{ damage.created_at.strftime('%Y-%m-%d %H:%M') if damage.created_at else 'N/A' }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
+{% endblock %}

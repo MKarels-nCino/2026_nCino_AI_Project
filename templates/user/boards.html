@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Available Boards - Wipeout & Chill{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-2">
+            <i class="bi bi-grid"></i> Our Board Collection
+        </h1>
+        <p class="text-muted mb-4">All our boards are beginner-friendly. Because we get it - you're learning, and that's awesome! 🏄‍♂️</p>
+    </div>
+</div>
+
+<!-- Filter/Search Bar -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <input type="text" class="form-control" id="boardSearch" placeholder="Search boards...">
+    </div>
+    <div class="col-md-6">
+        <select class="form-select" id="statusFilter">
+            <option value="all">All Status</option>
+            <option value="available">Available</option>
+            <option value="checked_out">Checked Out</option>
+            <option value="damaged">Damaged</option>
+        </select>
+    </div>
+</div>
+
+<!-- Boards Grid -->
+<div class="row" id="boardsGrid">
+    {% if boards %}
+        {% for board in boards %}
+        <div class="col-md-4 mb-4 board-card-wrapper" data-board-id="{{ board.id }}" data-status="{{ board.status }}" data-name="{{ board.name|lower }}" data-brand="{{ board.brand|lower if board.brand else '' }}">
+            <div class="card h-100 shadow-sm board-card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ board.name }}</h5>
+                    <p class="card-text text-muted">
+                        {% if board.brand %}<strong>Brand:</strong> {{ board.brand }}<br>{% endif %}
+                        {% if board.size %}<strong>Size:</strong> {{ board.size }}<br>{% endif %}
+                        <strong>Condition:</strong> 
+                        <span class="badge bg-{% if board.condition == 'excellent' %}success{% elif board.condition == 'good' %}info{% else %}warning{% endif %}">
+                            {{ board.condition|title }}
+                        </span>
+                    </p>
+                    
+                    <!-- Status Badge -->
+                    {% if board.status == 'available' %}
+                        <span class="badge bg-success mb-2">
+                            <i class="bi bi-check-circle"></i> Ready to Ride!
+                        </span>
+                        <br>
+                        <button class="btn btn-primary btn-sm mt-2 checkout-btn" data-board-id="{{ board.id }}">
+                            <i class="bi bi-cart-plus"></i> Let's Do This!
+                        </button>
+                    {% elif board.status == 'checked_out' %}
+                        <span class="badge bg-warning mb-2">
+                            <i class="bi bi-clock"></i> Out Making Memories
+                        </span>
+                        <br>
+                        <button class="btn btn-info btn-sm mt-2 reserve-btn" data-board-id="{{ board.id }}" disabled>
+                            <i class="bi bi-bookmark"></i> Reserve (Coming Soon)
+                        </button>
+                    {% elif board.status == 'damaged' %}
+                        <span class="badge bg-danger mb-2">
+                            <i class="bi bi-exclamation-triangle"></i> Taking a Break
+                        </span>
+                        <p class="text-muted small mt-2 mb-0">Even boards need rest sometimes!</p>
+                    {% elif board.status == 'in_repair' %}
+                        <span class="badge bg-secondary mb-2">
+                            <i class="bi bi-tools"></i> Getting Some TLC
+                        </span>
+                        <p class="text-muted small mt-2 mb-0">Back soon, better than ever!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="bi bi-emoji-frown" style="font-size: 2rem;"></i>
+                <p class="mt-2 mb-0">No boards found right now. But don't worry - more are coming! Check back soon for your next adventure.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/checkout_handler.js') }}"></script>
+<script>
+// Board search and filter
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('boardSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    function filterBoards() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const boards = document.querySelectorAll('.board-card-wrapper');
+        
+        boards.forEach(board => {
+            const name = board.dataset.name || '';
+            const brand = board.dataset.brand || '';
+            const status = board.dataset.status || '';
+            const matchesSearch = name.includes(searchTerm) || brand.includes(searchTerm);
+            const matchesStatus = statusValue === 'all' || status === statusValue;
+            
+            if (matchesSearch && matchesStatus) {
+                board.style.display = '';
+            } else {
+                board.style.display = 'none';
+            }
+        });
+    }
+    
+    searchInput.addEventListener('input', filterBoards);
+    statusFilter.addEventListener('change', filterBoards);
+});
+</script>
+{% endblock %}

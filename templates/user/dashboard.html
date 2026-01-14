@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Wipeout & Chill{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1 class="mb-2">
+                    <i class="bi bi-speedometer2"></i> Welcome Back, Surfer!
+                </h1>
+                <p class="text-muted mb-0">Ready to catch some waves? (Or at least try!) Remember: falling is just part of the fun. 🏄‍♂️</p>
+            </div>
+            <div>
+                <form method="POST" action="{{ url_for('user_routes.switch_location') }}" class="d-inline">
+                    <div class="input-group">
+                        <label class="input-group-text" for="locationSelect">
+                            <i class="bi bi-geo-alt"></i> Location:
+                        </label>
+                        <select name="location_id" id="locationSelect" class="form-select" onchange="this.form.submit()">
+                            {% for location in all_locations %}
+                            <option value="{{ location.id }}" {% if location.id == selected_location_id %}selected{% endif %}>
+                                {{ location.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Available Boards Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Boards Ready to Ride! (or at least try)</h5>
+                {% if current_location %}
+                <small class="text-white-50">
+                    <i class="bi bi-geo-alt"></i> {{ current_location.name }}
+                </small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if available_boards %}
+                <div class="row" id="availableBoards">
+                    {% for board in available_boards %}
+                    <div class="col-md-4 mb-3" data-board-id="{{ board.id }}" data-status="{{ board.status }}">
+                        <div class="card h-100 board-card">
+                            <div class="card-body">
+                                <h5 class="card-title d-flex justify-content-between align-items-center">
+                                    <span>{{ board.name }}</span>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Available
+                                    </span>
+                                </h5>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        {% if board.brand %}{{ board.brand }} - {% endif %}
+                                        {% if board.size %}{{ board.size }}{% endif %}
+                                    </small>
+                                </p>
+                                <button class="btn btn-primary btn-sm checkout-btn" data-board-id="{{ board.id }}">
+                                    <i class="bi bi-cart-plus"></i> Checkout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-emoji-frown" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-2">No boards available right now. But don't worry - more waves (and boards) are coming!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Checkouts Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> My Active Checkouts (Making Memories!)</h5>
+            </div>
+            <div class="card-body">
+                {% if active_checkouts %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Board</th>
+                                <th>Checkout Time</th>
+                                <th>Expected Return</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for checkout in active_checkouts %}
+                            <tr>
+                                <td>{{ checkout.board_id }}</td>
+                                <td>{{ checkout.checkout_time }}</td>
+                                <td>{{ checkout.expected_return_time }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success return-btn" data-checkout-id="{{ checkout.id }}">
+                                        <i class="bi bi-arrow-return-left"></i> Return
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-surfboard" style="font-size: 3rem; color: #6c757d;"></i>
+                    <p class="text-muted mt-2">No active checkouts. Time to grab a board and make some memories (and probably some wipeouts)!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reservations Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-bookmark"></i> My Reservations (Your Next Adventure Awaits!)</h5>
+            </div>
+            <div class="card-body">
+                {% if reservations %}
+                <div class="list-group">
+                    {% for reservation in reservations %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Board Reservation</h6>
+                            <span class="badge bg-info">{{ reservation.status }}</span>
+                        </div>
+                        <p class="mb-1">Unlock Time: {{ reservation.unlock_time }}</p>
+                        {% if reservation.status == 'available' %}
+                        <button class="btn btn-sm btn-primary fulfill-btn" data-reservation-id="{{ reservation.id }}">
+                            <i class="bi bi-check-circle"></i> Fulfill Reservation
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-check" style="font-size: 3rem; color: #6c757d;"></i>
+                    <p class="text-muted mt-2">No reservations yet. When a board catches your eye, reserve it for your next wipeout session!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/user_dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/checkout_handler.js') }}"></script>
+{% endblock %}

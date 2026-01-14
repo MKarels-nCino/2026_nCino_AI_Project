@@ -1,0 +1,95 @@
+/* Branding and personality styles for Wipeout & Chill */
+
+/* Company Colors - Chicago Bears inspired (subtle) */
+:root {
+    --wipeout-blue: #0B162A; /* Bears navy */
+    --wipeout-orange: #C83803; /* Bears orange */
+    --wipeout-fall: #8B4513; /* Fall brown */
+    --wipeout-chicago: #E31837; /* Chicago red */
+}
+
+/* Fun hover effects */
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Encouraging messages styling */
+.encouraging-message {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    text-align: center;
+    font-style: italic;
+}
+
+/* Fun board card styling */
+.board-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--wipeout-orange);
+}
+
+.board-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Fall-themed accents (subtle) */
+.fall-accent {
+    color: var(--wipeout-fall);
+}
+
+/* Chicago Bears reference (very subtle) */
+.bears-reference {
+    color: var(--wipeout-blue);
+}
+
+/* Fun status badges */
+.badge.bg-success::before {
+    content: "🏄 ";
+}
+
+.badge.bg-warning::before {
+    content: "⏰ ";
+}
+
+.badge.bg-danger::before {
+    content: "⚠️ ";
+}
+
+/* Welcome message styling */
+.welcome-message {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border-left: 5px solid var(--wipeout-orange);
+    margin-bottom: 2rem;
+}
+
+/* Fun empty states */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+/* Movie reference styling (subtle) */
+.movie-reference {
+    font-style: italic;
+    color: #6c757d;
+}
+
+/* Fall season styling */
+.fall-season {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 25%, #4facfe 50%, #00f2fe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}

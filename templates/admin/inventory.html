@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory - Wipeout & Chill Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-grid"></i> Board Inventory
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <input type="text" class="form-control" id="boardSearch" placeholder="Search boards...">
+    </div>
+    <div class="col-md-6">
+        <select class="form-select" id="statusFilter">
+            <option value="all">All Status</option>
+            <option value="available">Available</option>
+            <option value="checked_out">Checked Out</option>
+            <option value="damaged">Damaged</option>
+            <option value="in_repair">In Repair</option>
+            <option value="replaced">Replaced</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                {% if boards %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Brand</th>
+                                <th>Size</th>
+                                <th>Condition</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for board in boards %}
+                            <tr data-board-id="{{ board.id }}" data-status="{{ board.status }}" data-name="{{ board.name|lower }}">
+                                <td>{{ board.name }}</td>
+                                <td>{{ board.brand or '-' }}</td>
+                                <td>{{ board.size or '-' }}</td>
+                                <td>
+                                    <span class="badge bg-{% if board.condition == 'excellent' %}success{% elif board.condition == 'good' %}info{% else %}warning{% endif %}">
+                                        {{ board.condition|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if board.status == 'available' %}success{% elif board.status == 'checked_out' %}warning{% elif board.status == 'damaged' %}danger{% elif board.status == 'in_repair' %}secondary{% else %}info{% endif %}">
+                                        {{ board.status|title|replace('_', ' ') }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="viewBoard('{{ board.id }}')">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No boards found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Search and filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('boardSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    function filterBoards() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const name = row.dataset.name || '';
+            const status = row.dataset.status || '';
+            const matchesSearch = name.includes(searchTerm);
+            const matchesStatus = statusValue === 'all' || status === statusValue;
+            
+            row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+        });
+    }
+    
+    searchInput.addEventListener('input', filterBoards);
+    statusFilter.addEventListener('change', filterBoards);
+});
+
+function viewBoard(boardId) {
+    // TODO: Implement board detail view
+    alert('Board detail view coming soon!');
+}
+</script>
+{% endblock %}

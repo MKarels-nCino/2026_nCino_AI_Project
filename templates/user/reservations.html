@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}My Reservations - Wipeout & Chill{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-2">
+            <i class="bi bi-bookmark"></i> My Reservations
+        </h1>
+        <p class="text-muted mb-4">Your next surfing adventure is locked in! 🎉</p>
+    </div>
+</div>
+
+{% if reservations %}
+<div class="row">
+    {% for reservation in reservations %}
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">Board Reservation</h5>
+                    <span class="badge bg-{% if reservation.status == 'pending' %}warning{% elif reservation.status == 'available' %}success{% elif reservation.status == 'fulfilled' %}info{% else %}secondary{% endif %}">
+                        {{ reservation.status|title }}
+                    </span>
+                </div>
+                <p class="card-text">
+                    <strong>Board ID:</strong> {{ reservation.board_id }}<br>
+                    <strong>Reserved:</strong> {{ reservation.reservation_time.strftime('%Y-%m-%d %H:%M') if reservation.reservation_time else 'N/A' }}<br>
+                    <strong>Available After:</strong> {{ reservation.unlock_time.strftime('%Y-%m-%d %H:%M') if reservation.unlock_time else 'N/A' }}
+                </p>
+                {% if reservation.status == 'available' %}
+                    <button class="btn btn-primary fulfill-btn" data-reservation-id="{{ reservation.id }}">
+                        <i class="bi bi-check-circle"></i> Let's Ride!
+                    </button>
+                {% endif %}
+                {% if reservation.status == 'pending' %}
+                    <small class="text-muted d-block mb-2">Your board will be ready soon! We'll notify you when it's available. 🎉</small>
+                    <button class="btn btn-secondary cancel-reservation-btn" data-reservation-id="{{ reservation.id }}">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="bi bi-calendar-check" style="font-size: 3rem;"></i>
+            <p class="mt-2 mb-0">No reservations yet. When a board catches your eye, reserve it for your next wipeout session!</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Reservation handlers
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.fulfill-btn')) {
+        const btn = e.target.closest('.fulfill-btn');
+        const reservationId = btn.dataset.reservationId;
+        
+        // TODO: Implement fulfillment logic
+        if (typeof showToast === 'function') {
+            showToast('Reservation fulfillment coming soon!', 'info');
+        }
+    }
+    
+    if (e.target.closest('.cancel-reservation-btn')) {
+        const btn = e.target.closest('.cancel-reservation-btn');
+        const reservationId = btn.dataset.reservationId;
+        
+        if (confirm('Cancel this reservation? No worries - you can always make another one!')) {
+            fetch(`/api/cancel-reservation/${reservationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof showToast === 'function') {
+                        showToast('Reservation cancelled! No worries - there are more waves (and boards) coming! 🌊', 'success');
+                    }
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast(`Cancellation failed: ${data.error}`, 'error');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Cancel reservation error:', error);
+                if (typeof showToast === 'function') {
+                    showToast('Cancellation failed. Please try again.', 'error');
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

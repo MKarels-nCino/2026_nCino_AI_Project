@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Damage Queue - Wipeout & Chill Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-exclamation-triangle"></i> Damage Queue
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <select class="form-select" id="statusFilter">
+            <option value="all">All Status</option>
+            <option value="new">New</option>
+            <option value="in_repair">In Repair</option>
+            <option value="replaced">Replaced</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if damage_reports %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Board ID</th>
+                                <th>Severity</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Reported</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for damage in damage_reports %}
+                            <tr data-status="{{ damage.status }}">
+                                <td>{{ damage.board_id }}</td>
+                                <td>
+                                    <span class="badge bg-{% if damage.severity == 'severe' %}danger{% elif damage.severity == 'moderate' %}warning{% else %}info{% endif %}">
+                                        {{ damage.severity|title }}
+                                    </span>
+                                </td>
+                                <td>{{ damage.description[:50] }}{% if damage.description|length > 50 %}...{% endif %}</td>
+                                <td>
+                                    <span class="badge bg-{% if damage.status == 'new' %}danger{% elif damage.status == 'in_repair' %}warning{% else %}success{% endif %}">
+                                        {{ damage.status|title|replace('_', ' ') }}
+                                    </span>
+                                </td>
+                                <td>{{ damage.created_at.strftime('%Y-%m-%d %H:%M') if damage.created_at else 'N/A' }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="viewDamage('{{ damage.id }}')">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    {% if damage.status == 'new' %}
+                                    <button class="btn btn-sm btn-warning" onclick="updateDamageStatus('{{ damage.id }}', 'in_repair')">
+                                        <i class="bi bi-tools"></i> Mark In Repair
+                                    </button>
+                                    {% elif damage.status == 'in_repair' %}
+                                    <button class="btn btn-sm btn-success" onclick="updateDamageStatus('{{ damage.id }}', 'replaced')">
+                                        <i class="bi bi-check-circle"></i> Mark Replaced
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No damage reports found.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Damage Detail Modal -->
+<div class="modal fade" id="damageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Damage Report Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="damageModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Status filter
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    statusFilter.addEventListener('change', function() {
+        const statusValue = this.value;
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const status = row.dataset.status || '';
+            row.style.display = (statusValue === 'all' || status === statusValue) ? '' : 'none';
+        });
+    });
+});
+
+function viewDamage(damageId) {
+    // TODO: Load damage details via API
+    alert('Damage detail view coming soon!');
+}
+
+function updateDamageStatus(damageId, newStatus) {
+    if (!confirm(`Are you sure you want to mark this as ${newStatus.replace('_', ' ')}?`)) {
+        return;
+    }
+    
+    fetch(`/admin/api/damage/${damageId}/update-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            status: newStatus,
+            admin_notes: ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') {
+                showToast('Damage status updated successfully!', 'success');
+            }
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            if (typeof showToast === 'function') {
+                showToast(`Update failed: ${data.error}`, 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Update error:', error);
+        if (typeof showToast === 'function') {
+            showToast('Update failed. Please try again.', 'error');
+        }
+    });
+}
+</script>
+{% endblock %}

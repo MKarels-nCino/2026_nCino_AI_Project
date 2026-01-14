@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout Schedule - Wipeout & Chill Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-2">
+            <i class="bi bi-calendar"></i> Checkout Schedule
+        </h1>
+        <p class="text-muted mb-4">See when boards are checked out and when they'll be back. Plan ahead! 📅</p>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <select class="form-select" id="boardFilter">
+            <option value="all">All Boards</option>
+            {% for board in boards %}
+            <option value="{{ board.id }}">{{ board.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6">
+        <input type="date" class="form-control" id="dateFilter" value="{{ today }}">
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                {% if checkouts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Board</th>
+                                <th>User</th>
+                                <th>Checkout Time</th>
+                                <th>Expected Return</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for checkout in checkouts %}
+                            <tr data-board-id="{{ checkout.board_id }}">
+                                <td>{{ checkout.board.name if checkout.board else checkout.board_id }}</td>
+                                <td>{{ checkout.user.full_name if checkout.user else checkout.user_id }}</td>
+                                <td>{{ checkout.checkout_time.strftime('%Y-%m-%d %H:%M') if checkout.checkout_time else 'N/A' }}</td>
+                                <td>
+                                    <strong>{{ checkout.expected_return_time.strftime('%Y-%m-%d %H:%M') if checkout.expected_return_time else 'N/A' }}</strong>
+                                    {% if checkout.expected_return_time %}
+                                    <br><small class="text-muted">
+                                        {% if checkout.is_active %}
+                                            {% if checkout.expected_return_time > now %}
+                                                Returns in {{ (checkout.expected_return_time - now).days }} day(s)
+                                            {% else %}
+                                                Overdue!
+                                            {% endif %}
+                                        {% endif %}
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if checkout.status == 'active' %}warning{% elif checkout.status == 'returned' %}success{% else %}secondary{% endif %}">
+                                        {{ checkout.status|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x" style="font-size: 3rem; color: #6c757d;"></i>
+                    <p class="text-muted mt-2">No checkouts scheduled. All boards are available!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar View (Future Enhancement) -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar3"></i> Calendar View (Coming Soon)</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">A visual calendar showing checkout timelines will be available here. For now, use the table above to see scheduled checkouts.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const boardFilter = document.getElementById('boardFilter');
+    const dateFilter = document.getElementById('dateFilter');
+    
+    function filterSchedule() {
+        const boardValue = boardFilter.value;
+        const dateValue = dateFilter.value;
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const boardId = row.dataset.boardId;
+            const checkoutDate = row.querySelector('td:nth-child(3)').textContent.split(' ')[0];
+            
+            const matchesBoard = boardValue === 'all' || boardId === boardValue;
+            const matchesDate = !dateValue || checkoutDate.startsWith(dateValue);
+            
+            row.style.display = (matchesBoard && matchesDate) ? '' : 'none';
+        });
+    }
+    
+    boardFilter.addEventListener('change', filterSchedule);
+    dateFilter.addEventListener('change', filterSchedule);
+});
+</script>
+{% endblock %}
