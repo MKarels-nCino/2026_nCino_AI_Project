@@ -683,17 +683,13 @@ document.getElementById('hasDamage').addEventListener('change', function() {
     damageDesc.style.display = this.checked ? 'block' : 'none';
 });
 
-// Star rating interaction
+// Star rating interaction - CSS handles the visual with :checked selector
+// Just need to clear any manually added 'active' classes when selection changes
 document.querySelectorAll('.star-rating input[type="radio"]').forEach(radio => {
     radio.addEventListener('change', function() {
-        const rating = parseInt(this.value);
-        const labels = document.querySelectorAll('.star-label');
-        labels.forEach((label, index) => {
-            if (index < rating) {
-                label.classList.add('active');
-            } else {
-                label.classList.remove('active');
-            }
+        // Remove all active classes - let CSS :checked handle the highlighting
+        document.querySelectorAll('.star-label').forEach(label => {
+            label.classList.remove('active');
         });
     });
 });

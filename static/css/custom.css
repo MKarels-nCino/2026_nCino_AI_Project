@@ -493,36 +493,33 @@ img {
     font-size: 0.85rem;
 }
 
-/* Star Rating */
+/* Star Rating - uses reverse order so CSS sibling selectors work correctly */
 .star-rating {
     display: flex;
     flex-direction: row-reverse;
     justify-content: flex-end;
-    gap: 0.25rem;
+    gap: 0.1rem;
 }
 
 .star-rating input[type="radio"] {
     display: none;
 }
 
-.star-label {
+.star-rating label {
     font-size: 2rem;
     color: #ddd;
     cursor: pointer;
     transition: color 0.2s ease;
 }
 
-.star-label:hover,
-.star-label:hover ~ .star-label {
+/* Hover effect - highlight hovered star and all stars to the left (which are siblings after in DOM due to reverse) */
+.star-rating label:hover,
+.star-rating label:hover ~ label {
     color: #FFC107;
 }
 
-.star-rating input[type="radio"]:checked ~ .star-label,
-.star-label.active {
-    color: #FFC107;
-}
-
-.star-rating input[type="radio"]:checked ~ .star-label ~ .star-label {
+/* Selected state - when radio is checked, highlight its label and all labels after it */
+.star-rating input[type="radio"]:checked ~ label {
     color: #FFC107;
 }
 
