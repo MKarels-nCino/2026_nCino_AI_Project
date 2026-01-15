@@ -7,24 +7,22 @@ A multi-location surfboard checkout and inventory management system built with F
 
 ### Backend
 - **Flask 3.0** - Web framework
-- **Supabase PostgreSQL** - Database (already configured)
-- **Supabase Auth** - Authentication
+- **SQLite** - Local file-based database
+- **Flask-SQLAlchemy** - ORM for database operations
+- **Flask-Login** - Authentication and session management
 - **Flask-SocketIO** - WebSocket support for real-time updates
-- **psycopg2** - PostgreSQL adapter (already configured)
+- **Werkzeug** - Password hashing (generate_password_hash, check_password_hash)
 
 ### Frontend
 - **Jinja2 Templates** - Server-side rendering
 - **Bootstrap 5** - UI framework (modern, responsive, professional)
+- **Bootstrap Icons** - Icon library
 - **JavaScript (Vanilla + Socket.IO Client)** - Real-time updates and interactivity
-- **Chart.js** - For reporting visualizations
 
 ### Additional Libraries
-- **python-dotenv** - Environment variables (already configured)
-- **Flask-Login** - Session management (works with Supabase Auth)
-- **email-validator** - Email validation
-- **smtplib** - Email notifications (or use Supabase email service)
+- **python-dotenv** - Environment variables
 - **pytz** - Timezone handling
-- **dateutil** - Date/time utilities
+- **datetime/timedelta** - Date/time utilities
 
 ## Code Organization Principles
 
